@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D KNN Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        #controls h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            margin-right: 10px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <h3>3D KNN Controls</h3>
+            
+            <div class="control-group">
+                <label>K Value: <span id="kValue">5</span></label>
+                <input type="range" id="kSlider" min="1" max="15" value="5">
+            </div>
+            
+            <div class="control-group">
+                <label>Distance Metric:</label>
+                <select id="distanceMetric">
+                    <option value="euclidean">Euclidean (L2)</option>
+                    <option value="manhattan">Manhattan (L1)</option>
+                    <option value="chebyshev">Chebyshev (L∞)</option>
+                    <option value="minkowski">Minkowski (p=1.5)</option>
+                </select>
+            </div>
+            
+            <div class="control-group" id="minkowskiControl" style="display: none;">
+                <label>Minkowski p: <span id="pValue">1.5</span></label>
+                <input type="range" id="pSlider" min="1" max="5" step="0.1" value="1.5">
+            </div>
+            
+            <div class="control-group">
+                <label>Weighting Method:</label>
+                <select id="weightMethod">
+                    <option value="uniform">Uniform (Standard KNN)</option>
+                    <option value="distance">Distance Weighted</option>
+                    <option value="rank">Rank Weighted</option>
+                    <option value="gaussian">Gaussian Weighted</option>
+                </select>
+            </div>
+            
+            <div class="control-group" id="sigmaControl" style="display: none;">
+                <label>Gaussian Sigma: <span id="sigmaValue">1.0</span></label>
+                <input type="range" id="sigmaSlider" min="0.1" max="3.0" step="0.1" value="1.0">
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showDistances" checked> Show Distance Lines
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showDistanceText"> Show Distance Values
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showDistanceSphere"> Show Distance Sphere
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <button id="newQuery">New Query Point</button>
+                <button id="regenerate">Regenerate Data</button>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff4444;"></div>
+                <span>Class A</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #44ff44;"></div>
+                <span>Class B</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4444ff;"></div>
+                <span>Class C</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffff44;"></div>
+                <span>Query Point</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffffff; border: 2px solid #333;"></div>
+                <span>K-Nearest</span>
+            </div>
+        </div>
+        
+        <div id="info">
+            <div>Click and drag to rotate • Scroll to zoom</div>
+            <div id="prediction"></div>
+            <div id="weightInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let dataPoints = [];
+        let queryPoint = null;
+        let nearestPoints = [];
+        let k = 5;
+        let weightMethod = 'uniform';
+        let sigma = 1.0;
+        let distanceLines = [];
+        let distanceTexts = [];
+        let distanceSphere = null;
+        let distanceMetric = 'euclidean';
+        let minkowskiP = 1.5;
+        
+        // Colors for different classes
+        const classColors = [0xff4444, 0x44ff44, 0x4444ff];
+        const queryColor = 0xffff44;
+        const nearestColor = 0xffffff;
+        
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Add coordinate axes
+            addAxes();
+            
+            // Generate initial data
+            generateData();
+            
+            // Add mouse controls
+            addMouseControls();
+            
+            // Event listeners
+            document.getElementById('kSlider').addEventListener('input', updateK);
+            document.getElementById('distanceMetric').addEventListener('change', updateDistanceMetric);
+            document.getElementById('pSlider').addEventListener('input', updateMinkowskiP);
+            document.getElementById('weightMethod').addEventListener('change', updateWeightMethod);
+            document.getElementById('sigmaSlider').addEventListener('input', updateSigma);
+            document.getElementById('showDistances').addEventListener('change', updateKNN);
+            document.getElementById('showDistanceText').addEventListener('change', updateKNN);
+            document.getElementById('showDistanceSphere').addEventListener('change', updateKNN);
+            document.getElementById('newQuery').addEventListener('click', createNewQueryPoint);
+            document.getElementById('regenerate').addEventListener('click', regenerateData);
+            
+            // Start render loop
+            animate();
+        }
+        
+        function addAxes() {
+            const axesGroup = new THREE.Group();
+            
+            // X axis (red)
+            const xGeometry = new THREE.CylinderGeometry(0.05, 0.05, 20);
+            const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const xAxis = new THREE.Mesh(xGeometry, xMaterial);
+            xAxis.rotation.z = Math.PI / 2;
+            axesGroup.add(xAxis);
+            
+            // Y axis (green)
+            const yGeometry = new THREE.CylinderGeometry(0.05, 0.05, 20);
+            const yMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const yAxis = new THREE.Mesh(yGeometry, yMaterial);
+            axesGroup.add(yAxis);
+            
+            // Z axis (blue)
+            const zGeometry = new THREE.CylinderGeometry(0.05, 0.05, 20);
+            const zMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const zAxis = new THREE.Mesh(zGeometry, zMaterial);
+            zAxis.rotation.x = Math.PI / 2;
+            axesGroup.add(zAxis);
+            
+            scene.add(axesGroup);
+        }
+        
+        function generateData() {
+            // Clear existing data
+            dataPoints.forEach(point => scene.remove(point.mesh));
+            dataPoints = [];
+            
+            // Generate clustered data for each class
+            for (let classId = 0; classId < 3; classId++) {
+                const centerX = (Math.random() - 0.5) * 10;
+                const centerY = (Math.random() - 0.5) * 10;
+                const centerZ = (Math.random() - 0.5) * 10;
+                
+                for (let i = 0; i < 15; i++) {
+                    const x = centerX + (Math.random() - 0.5) * 6;
+                    const y = centerY + (Math.random() - 0.5) * 6;
+                    const z = centerZ + (Math.random() - 0.5) * 6;
+                    
+                    const geometry = new THREE.SphereGeometry(0.3);
+                    const material = new THREE.MeshLambertMaterial({ 
+                        color: classColors[classId],
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(x, y, z);
+                    mesh.castShadow = true;
+                    
+                    scene.add(mesh);
+                    dataPoints.push({
+                        x, y, z,
+                        class: classId,
+                        mesh: mesh,
+                        originalMaterial: material
+                    });
+                }
+            }
+            
+            createNewQueryPoint();
+        }
+        
+        function createNewQueryPoint() {
+            // Remove existing query point
+            if (queryPoint) {
+                scene.remove(queryPoint.mesh);
+            }
+            
+            // Clear distance visualizations
+            clearDistanceVisualizations();
+            
+            // Create new query point
+            const x = (Math.random() - 0.5) * 15;
+            const y = (Math.random() - 0.5) * 15;
+            const z = (Math.random() - 0.5) * 15;
+            
+            const geometry = new THREE.SphereGeometry(0.5);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: queryColor,
+                emissive: 0x333300
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            
+            scene.add(mesh);
+            queryPoint = { x, y, z, mesh };
+            
+            updateKNN();
+        }
+        
+        function updateDistanceMetric() {
+            distanceMetric = document.getElementById('distanceMetric').value;
+            const minkowskiControl = document.getElementById('minkowskiControl');
+            minkowskiControl.style.display = distanceMetric === 'minkowski' ? 'block' : 'none';
+            updateKNN();
+        }
+        
+        function updateMinkowskiP() {
+            minkowskiP = parseFloat(document.getElementById('pSlider').value);
+            document.getElementById('pValue').textContent = minkowskiP.toFixed(1);
+            updateKNN();
+        }
+        
+        function calculateDistance(p1, p2) {
+            const dx = Math.abs(p1.x - p2.x);
+            const dy = Math.abs(p1.y - p2.y);
+            const dz = Math.abs(p1.z - p2.z);
+            
+            switch (distanceMetric) {
+                case 'euclidean':
+                    return Math.sqrt(dx*dx + dy*dy + dz*dz);
+                case 'manhattan':
+                    return dx + dy + dz;
+                case 'chebyshev':
+                    return Math.max(dx, dy, dz);
+                case 'minkowski':
+                    return Math.pow(Math.pow(dx, minkowskiP) + Math.pow(dy, minkowskiP) + Math.pow(dz, minkowskiP), 1/minkowskiP);
+                default:
+                    return Math.sqrt(dx*dx + dy*dy + dz*dz);
+            }
+        }
+        
+        function updateK() {
+            k = parseInt(document.getElementById('kSlider').value);
+            document.getElementById('kValue').textContent = k;
+            updateKNN();
+        }
+        
+        function updateWeightMethod() {
+            weightMethod = document.getElementById('weightMethod').value;
+            const sigmaControl = document.getElementById('sigmaControl');
+            sigmaControl.style.display = weightMethod === 'gaussian' ? 'block' : 'none';
+            updateKNN();
+        }
+        
+        function calculateWeight(distance, rank) {
+            switch (weightMethod) {
+                case 'uniform':
+                    return 1.0;
+                case 'distance':
+                    return distance === 0 ? 1.0 : 1.0 / distance;
+                case 'rank':
+                    return 1.0 / (rank + 1);
+                case 'gaussian':
+                    return Math.exp(-(distance * distance) / (2 * sigma * sigma));
+                default:
+                    return 1.0;
+            }
+        }
+        
+        function clearDistanceVisualizations() {
+            // Clear distance lines
+            distanceLines.forEach(line => scene.remove(line));
+            distanceLines = [];
+            
+            // Clear distance texts
+            distanceTexts.forEach(text => scene.remove(text));
+            distanceTexts = [];
+            
+            // Clear distance sphere
+            if (distanceSphere) {
+                scene.remove(distanceSphere);
+                distanceSphere = null;
+            }
+        }
+        
+        function createDistanceVisualization(distances) {
+            const showLines = document.getElementById('showDistances').checked;
+            const showTexts = document.getElementById('showDistanceText').checked;
+            const showSphere = document.getElementById('showDistanceSphere').checked;
+            
+            if (showLines) {
+                distances.forEach((point, index) => {
+                    const isNearest = index < k;
+                    
+                    // Create line geometry
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array([
+                        queryPoint.x, queryPoint.y, queryPoint.z,
+                        point.x, point.y, point.z
+                    ]);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    // Color based on distance and selection
+                    let color, opacity;
+                    if (isNearest) {
+                        color = 0xffff00; // Yellow for nearest
+                        opacity = 0.8;
+                    } else {
+                        // Color gradient from green (close) to red (far)
+                        const maxDist = Math.max(...distances.map(d => d.distance));
+                        const normalizedDist = point.distance / maxDist;
+                        const r = normalizedDist;
+                        const g = 1 - normalizedDist;
+                        color = new THREE.Color(r, g, 0);
+                        opacity = 0.3;
+                    }
+                    
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: color,
+                        transparent: true,
+                        opacity: opacity
+                    });
+                    
+                    const line = new THREE.Line(geometry, material);
+                    scene.add(line);
+                    distanceLines.push(line);
+                });
+            }
+            
+            if (showTexts) {
+                // Create canvas for text rendering
+                distances.forEach((point, index) => {
+                    if (index < k || index % 3 === 0) { // Show all nearest + every 3rd for others
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = 128;
+                        canvas.height = 32;
+                        
+                        context.fillStyle = index < k ? '#ffff00' : '#ffffff';
+                        context.font = '16px Arial';
+                        context.textAlign = 'center';
+                        context.fillText(point.distance.toFixed(2), 64, 20);
+                        
+                        const texture = new THREE.CanvasTexture(canvas);
+                        const material = new THREE.SpriteMaterial({ map: texture });
+                        const sprite = new THREE.Sprite(material);
+                        
+                        // Position text between query point and data point
+                        sprite.position.set(
+                            (queryPoint.x + point.x) / 2,
+                            (queryPoint.y + point.y) / 2 + 0.5,
+                            (queryPoint.z + point.z) / 2
+                        );
+                        sprite.scale.set(2, 0.5, 1);
+                        
+                        scene.add(sprite);
+                        distanceTexts.push(sprite);
+                    }
+                });
+            }
+            
+            if (showSphere && nearestPoints.length > 0) {
+                // Create sphere showing the k-th nearest neighbor distance
+                const kthDistance = nearestPoints[nearestPoints.length - 1].distance;
+                const geometry = new THREE.SphereGeometry(kthDistance, 32, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    transparent: true,
+                    opacity: 0.1,
+                    wireframe: true
+                });
+                
+                distanceSphere = new THREE.Mesh(geometry, material);
+                distanceSphere.position.set(queryPoint.x, queryPoint.y, queryPoint.z);
+                scene.add(distanceSphere);
+            }
+        }
+        
+        function updateSigma() {
+            sigma = parseFloat(document.getElementById('sigmaSlider').value);
+            document.getElementById('sigmaValue').textContent = sigma.toFixed(1);
+            updateKNN();
+        }
+        
+        function updateKNN() {
+            if (!queryPoint) return;
+            
+            // Clear previous visualizations
+            clearDistanceVisualizations();
+            
+            // Reset all materials
+            dataPoints.forEach(point => {
+                point.mesh.material = point.originalMaterial;
+                point.mesh.scale.set(1, 1, 1);
+            });
+            
+            // Calculate distances using selected metric
+            const distances = dataPoints.map(point => ({
+                ...point,
+                distance: calculateDistance(point, queryPoint)
+            }));
+            
+            // Sort by distance and get k nearest
+            distances.sort((a, b) => a.distance - b.distance);
+            nearestPoints = distances.slice(0, k);
+            
+            // Create distance visualizations
+            createDistanceVisualization(distances);
+            
+            // Calculate weights and weighted votes
+            const weightedVotes = [0, 0, 0];
+            let totalWeight = 0;
+            const weights = [];
+            
+            nearestPoints.forEach((point, index) => {
+                const weight = calculateWeight(point.distance, index);
+                weights.push(weight);
+                weightedVotes[point.class] += weight;
+                totalWeight += weight;
+            });
+            
+            // Normalize weights for display
+            const normalizedWeights = weights.map(w => w / totalWeight);
+            
+            // Highlight nearest neighbors with intensity based on weight
+            nearestPoints.forEach((point, index) => {
+                const normalizedWeight = normalizedWeights[index];
+                const intensity = Math.max(0.3, normalizedWeight * 3); // Scale for visibility
+                
+                const highlightMaterial = new THREE.MeshLambertMaterial({
+                    color: nearestColor,
+                    emissive: point.originalMaterial.color.getHex(),
+                    emissiveIntensity: intensity * 0.5,
+                    transparent: true,
+                    opacity: 0.7 + intensity * 0.3
+                });
+                point.mesh.material = highlightMaterial;
+                point.mesh.scale.set(1 + intensity * 0.5, 1 + intensity * 0.5, 1 + intensity * 0.5);
+            });
+            
+            // Make prediction based on weighted votes
+            const predictedClass = weightedVotes.indexOf(Math.max(...weightedVotes));
+            
+            // Update info display
+            const classNames = ['Class A', 'Class B', 'Class C'];
+            const roundedVotes = weightedVotes.map(v => v.toFixed(2));
+            
+            // Calculate statistics
+            const allDistances = distances.map(d => d.distance);
+            const minDist = Math.min(...allDistances);
+            const maxDist = Math.max(...allDistances);
+            const avgDist = allDistances.reduce((a, b) => a + b, 0) / allDistances.length;
+            
+            document.getElementById('prediction').innerHTML = 
+                `Predicted: <strong>${classNames[predictedClass]}</strong><br>` +
+                `Weighted votes: A:${roundedVotes[0]}, B:${roundedVotes[1]}, C:${roundedVotes[2]}<br>` +
+                `Distances - Min: ${minDist.toFixed(2)}, Max: ${maxDist.toFixed(2)}, Avg: ${avgDist.toFixed(2)}`;
+            
+            // Show weight method info
+            const weightDescriptions = {
+                'uniform': 'All neighbors have equal weight = 1.0',
+                'distance': 'Weight = 1/distance (closer = higher weight)',
+                'rank': 'Weight = 1/(rank+1) (1st=1.0, 2nd=0.5, 3rd=0.33...)',
+                'gaussian': `Weight = exp(-d²/2σ²) with σ=${sigma}`
+            };
+            
+            const distanceDescriptions = {
+                'euclidean': 'Euclidean: √(Δx² + Δy² + Δz²)',
+                'manhattan': 'Manhattan: |Δx| + |Δy| + |Δz|',
+                'chebyshev': 'Chebyshev: max(|Δx|, |Δy|, |Δz|)',
+                'minkowski': `Minkowski: (|Δx|^${minkowskiP} + |Δy|^${minkowskiP} + |Δz|^${minkowskiP})^(1/${minkowskiP})`
+            };
+            
+            document.getElementById('weightInfo').innerHTML = 
+                `<strong>Distance:</strong> ${distanceDescriptions[distanceMetric]}<br>` +
+                `<strong>Weighting:</strong> ${weightDescriptions[weightMethod]}`;
+        }
+        
+        function regenerateData() {
+            generateData();
+        }
+        
+        function addMouseControls() {
+            let mouseDown = false;
+            let mouseX = 0;
+            let mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                mouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (!mouseDown) return;
+                
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                // Rotate camera around origin
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            renderer.domElement.addEventListener('wheel', (e) => {
+                const scale = e.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                camera.position.clampLength(5, 50);
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Add gentle rotation to query point
+            if (queryPoint) {
+                queryPoint.mesh.rotation.y += 0.01;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function handleResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        window.addEventListener('resize', handleResize);
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

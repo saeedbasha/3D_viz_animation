@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Distance Metrics Comparison</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        #container {
+            width: 100%;
+            height: 700px;
+            border: 2px solid #4a90e2;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.2);
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        #info {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.85);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 350px;
+            border-left: 4px solid #4a90e2;
+        }
+        
+        #controls {
+            margin: 20px 0;
+            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .distance-card {
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .manhattan {
+            background: rgba(255, 107, 53, 0.15);
+            border-left-color: #ff6b35;
+        }
+        
+        .euclidean {
+            background: rgba(76, 175, 80, 0.15);
+            border-left-color: #4caf50;
+        }
+        
+        .chebyshev {
+            background: rgba(33, 150, 243, 0.15);
+            border-left-color: #2196f3;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #ecf0f1;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .description {
+            text-align: center;
+            color: #bdc3c7;
+            margin-bottom: 30px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .formula {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+        
+        .point-info {
+            background: rgba(74, 144, 226, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(74, 144, 226, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <h1>3D Distance Metrics Visualization</h1>
+    <p class="description">Compare Manhattan (diamond), Euclidean (sphere), and Chebyshev (cube) distance metrics in 3D space</p>
+    
+    <div id="container"></div>
+    
+    <div id="info">
+        <div class="point-info">
+            <div><strong>Point A:</strong> <span id="pointA">(2, 3, 1)</span></div>
+            <div><strong>Point B:</strong> <span id="pointB">(7, 1, 5)</span></div>
+        </div>
+        
+        <div class="distance-card manhattan">
+            <div><strong>Manhattan Distance</strong></div>
+            <div class="metric-value" id="manhattanResult">11.0</div>
+            <div class="formula">|x₂-x₁| + |y₂-y₁| + |z₂-z₁|</div>
+            <div id="manhattanCalc" style="margin-top: 4px;">5 + 2 + 4 = 11</div>
+        </div>
+        
+        <div class="distance-card euclidean">
+            <div><strong>Euclidean Distance</strong></div>
+            <div class="metric-value" id="euclideanResult">6.71</div>
+            <div class="formula">√[(x₂-x₁)² + (y₂-y₁)² + (z₂-z₁)²]</div>
+            <div id="euclideanCalc" style="margin-top: 4px;">√[25 + 4 + 16] = √45</div>
+        </div>
+        
+        <div class="distance-card chebyshev">
+            <div><strong>Chebyshev Distance</strong></div>
+            <div class="metric-value" id="chebyshevResult">5.0</div>
+            <div class="formula">max(|x₂-x₁|, |y₂-y₁|, |z₂-z₁|)</div>
+            <div id="chebyshevCalc" style="margin-top: 4px;">max(5, 2, 4) = 5</div>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+            🖱️ <strong>Mouse:</strong> Rotate view<br>
+            🖱️ <strong>Wheel:</strong> Zoom in/out<br>
+            🔴 <strong>Red/Green/Blue:</strong> Manhattan path (X→Y→Z)<br>
+            🟢 <strong>Green Arrow:</strong> Euclidean path (direct)<br>
+            🔵 <strong>Blue Dots:</strong> Chebyshev path (diagonal)
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="changeExample(1)">Example 1: (2,3,1) → (7,1,5)</button>
+        <button onclick="changeExample(2)">Example 2: (0,0,0) → (4,6,3)</button>
+        <button onclick="changeExample(3)">Example 3: (1,1,1) → (5,8,2)</button>
+        <button onclick="toggleShape('manhattan')">Toggle Manhattan (Diamond)</button>
+        <button onclick="toggleShape('euclidean')">Toggle Euclidean (Sphere)</button>
+        <button onclick="toggleShape('chebyshev')">Toggle Chebyshev (Cube)</button>
+        <button onclick="togglePath('manhattan')">Toggle Manhattan Path</button>
+        <button onclick="togglePath('euclidean')">Toggle Euclidean Path</button>
+        <button onclick="togglePath('chebyshev')">Toggle Chebyshev Path</button>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let pointA, pointB, directLine;
+        let manhattanShape, euclideanShape, chebyshevShape;
+        let manhattanPath = [], euclideanPath = [], chebyshevPath = [];
+        
+        // Visibility toggles
+        let showManhattan = true;
+        let showEuclidean = true;
+        let showChebyshev = true;
+        let showManhattanPath = true;
+        let showEuclideanPath = true;
+        let showChebyshevPath = true;
+        
+        // Example data
+        let examples = [
+            {
+                pointA: [2, 3, 1],
+                pointB: [7, 1, 5]
+            },
+            {
+                pointA: [0, 0, 0],
+                pointB: [4, 6, 3]
+            },
+            {
+                pointA: [1, 1, 1],
+                pointB: [5, 8, 2]
+            }
+        ];
+        
+        let currentExample = 0;
+
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/700, 0.1, 1000);
+            camera.position.set(25, 20, 25);
+            camera.lookAt(0, 0, 0);
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(document.getElementById('container').offsetWidth, 700);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(20, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Create coordinate system
+            createCoordinateSystem();
+            
+            // Create initial visualization
+            createVisualization();
+            
+            // Add controls
+            addMouseControls();
+            
+            // Start animation
+            animate();
+        }
+
+        function createCoordinateSystem() {
+            // Enhanced axes
+            const axesHelper = new THREE.AxesHelper(15);
+            scene.add(axesHelper);
+            
+            // Grid planes
+            const gridXZ = new THREE.GridHelper(30, 30, 0x444488, 0x222244);
+            gridXZ.position.y = -0.1;
+            scene.add(gridXZ);
+            
+            // YZ plane grid
+            const gridYZ = new THREE.GridHelper(30, 30, 0x448844, 0x224422);
+            gridYZ.rotateZ(Math.PI / 2);
+            gridYZ.position.x = -0.1;
+            scene.add(gridYZ);
+            
+            // XY plane grid
+            const gridXY = new THREE.GridHelper(30, 30, 0x884444, 0x442222);
+            gridXY.rotateX(Math.PI / 2);
+            gridXY.position.z = -0.1;
+            scene.add(gridXY);
+        }
+
+        function createVisualization() {
+            // Clear existing objects
+            clearVisualization();
+            
+            const example = examples[currentExample];
+            const [ax, ay, az] = example.pointA;
+            const [bx, by, bz] = example.pointB;
+            
+            // Calculate distances
+            const dx = Math.abs(bx - ax);
+            const dy = Math.abs(by - ay);
+            const dz = Math.abs(bz - az);
+            
+            const manhattan = dx + dy + dz;
+            const euclidean = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            const chebyshev = Math.max(dx, dy, dz);
+            
+            // Create points
+            createPoints(example.pointA, example.pointB);
+            
+            // Create distance visualizations
+            createManhattanShape(example.pointA, manhattan);
+            createEuclideanShape(example.pointA, euclidean);
+            createChebyshevShape(example.pointA, chebyshev);
+            
+            // Create all paths
+            createManhattanPath(example.pointA, example.pointB);
+            createEuclideanPath(example.pointA, example.pointB);
+            createChebyshevPath(example.pointA, example.pointB);
+            
+            // Update info display
+            updateInfo(example.pointA, example.pointB, manhattan, euclidean, chebyshev, dx, dy, dz);
+        }
+
+        function clearVisualization() {
+            if (pointA) scene.remove(pointA);
+            if (pointB) scene.remove(pointB);
+            if (directLine) scene.remove(directLine);
+            if (manhattanShape) scene.remove(manhattanShape);
+            if (euclideanShape) scene.remove(euclideanShape);
+            if (chebyshevShape) scene.remove(chebyshevShape);
+            
+            // Clear all paths
+            manhattanPath.forEach(item => scene.remove(item));
+            euclideanPath.forEach(item => scene.remove(item));
+            chebyshevPath.forEach(item => scene.remove(item));
+            manhattanPath = [];
+            euclideanPath = [];
+            chebyshevPath = [];
+        }
+
+        function createPoints(pA, pB) {
+            const pointGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+            
+            // Point A (red)
+            const pointAMaterial = new THREE.MeshLambertMaterial({ color: 0xff4444 });
+            pointA = new THREE.Mesh(pointGeometry, pointAMaterial);
+            pointA.position.set(...pA);
+            pointA.castShadow = true;
+            scene.add(pointA);
+            
+            // Point B (blue)
+            const pointBMaterial = new THREE.MeshLambertMaterial({ color: 0x4444ff });
+            pointB = new THREE.Mesh(pointGeometry, pointBMaterial);
+            pointB.position.set(...pB);
+            pointB.castShadow = true;
+            scene.add(pointB);
+            
+            // Direct line
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(...pA),
+                new THREE.Vector3(...pB)
+            ]);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xffffff, 
+                transparent: true, 
+                opacity: 0.4,
+                linewidth: 2
+            });
+            directLine = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(directLine);
+        }
+
+        function createManhattanShape(center, distance) {
+            // Octahedron represents Manhattan distance
+            const geometry = new THREE.OctahedronGeometry(distance / Math.sqrt(2));
+            const material = new THREE.MeshLambertMaterial({ 
+                color: 0xff6b35, 
+                transparent: true, 
+                opacity: 0.3,
+                wireframe: false
+            });
+            
+            manhattanShape = new THREE.Mesh(geometry, material);
+            manhattanShape.position.set(...center);
+            manhattanShape.visible = showManhattan;
+            scene.add(manhattanShape);
+            
+            // Add wireframe
+            const wireframe = new THREE.WireframeGeometry(geometry);
+            const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0xff6b35, opacity: 0.8, transparent: true });
+            const wireframeMesh = new THREE.LineSegments(wireframe, wireframeMaterial);
+            wireframeMesh.position.set(...center);
+            wireframeMesh.visible = showManhattan;
+            manhattanShape.add(wireframeMesh);
+        }
+
+        function createEuclideanShape(center, distance) {
+            // Sphere represents Euclidean distance
+            const geometry = new THREE.SphereGeometry(distance, 32, 16);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: 0x4caf50, 
+                transparent: true, 
+                opacity: 0.2,
+                wireframe: false
+            });
+            
+            euclideanShape = new THREE.Mesh(geometry, material);
+            euclideanShape.position.set(...center);
+            euclideanShape.visible = showEuclidean;
+            scene.add(euclideanShape);
+            
+            // Add wireframe
+            const wireframe = new THREE.WireframeGeometry(geometry);
+            const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x4caf50, opacity: 0.6, transparent: true });
+            const wireframeMesh = new THREE.LineSegments(wireframe, wireframeMaterial);
+            wireframeMesh.position.set(...center);
+            wireframeMesh.visible = showEuclidean;
+            euclideanShape.add(wireframeMesh);
+        }
+
+        function createChebyshevShape(center, distance) {
+            // Cube represents Chebyshev distance
+            const geometry = new THREE.BoxGeometry(distance*2, distance*2, distance*2);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: 0x2196f3, 
+                transparent: true, 
+                opacity: 0.2,
+                wireframe: false
+            });
+            
+            chebyshevShape = new THREE.Mesh(geometry, material);
+            chebyshevShape.position.set(...center);
+            chebyshevShape.visible = showChebyshev;
+            scene.add(chebyshevShape);
+            
+            // Add wireframe
+            const wireframe = new THREE.WireframeGeometry(geometry);
+            const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x2196f3, opacity: 0.8, transparent: true });
+            const wireframeMesh = new THREE.LineSegments(wireframe, wireframeMaterial);
+            wireframeMesh.position.set(...center);
+            wireframeMesh.visible = showChebyshev;
+            chebyshevShape.add(wireframeMesh);
+        }
+
+        function createManhattanPath(start, end) {
+            // Create step-by-step Manhattan path
+            const points = [
+                new THREE.Vector3(...start),
+                new THREE.Vector3(end[0], start[1], start[2]),    // X movement
+                new THREE.Vector3(end[0], end[1], start[2]),      // Y movement
+                new THREE.Vector3(end[0], end[1], end[2])         // Z movement
+            ];
+            
+            const colors = [0xff0000, 0x00ff00, 0x0000ff]; // Red, Green, Blue
+            
+            for (let i = 0; i < points.length - 1; i++) {
+                if (points[i].distanceTo(points[i + 1]) > 0) {
+                    const geometry = new THREE.BufferGeometry().setFromPoints([points[i], points[i + 1]]);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: colors[i], 
+                        linewidth: 6,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    line.visible = showManhattanPath;
+                    manhattanPath.push(line);
+                    scene.add(line);
+                }
+            }
+            
+            // Add intermediate points
+            for (let i = 1; i < points.length - 1; i++) {
+                const sphereGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                sphere.position.copy(points[i]);
+                sphere.visible = showManhattanPath;
+                manhattanPath.push(sphere);
+                scene.add(sphere);
+            }
+        }
+
+        function createEuclideanPath(start, end) {
+            // Euclidean path is just the direct line (already exists, but make it more prominent)
+            const geometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(...start),
+                new THREE.Vector3(...end)
+            ]);
+            
+            // Create a thicker, more visible line for Euclidean path
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x4caf50, 
+                linewidth: 8,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const line = new THREE.Line(geometry, material);
+            line.visible = showEuclideanPath;
+            euclideanPath.push(line);
+            scene.add(line);
+            
+            // Add arrow to show direction
+            const direction = new THREE.Vector3(...end).sub(new THREE.Vector3(...start)).normalize();
+            const arrowHelper = new THREE.ArrowHelper(
+                direction, 
+                new THREE.Vector3(...start), 
+                new THREE.Vector3(...start).distanceTo(new THREE.Vector3(...end)), 
+                0x4caf50, 
+                1, 
+                0.5
+            );
+            arrowHelper.visible = showEuclideanPath;
+            euclideanPath.push(arrowHelper);
+            scene.add(arrowHelper);
+        }
+
+        function createChebyshevPath(start, end) {
+            // Chebyshev path: move diagonally first, then along remaining axis
+            const dx = end[0] - start[0];
+            const dy = end[1] - start[1];
+            const dz = end[2] - start[2];
+            
+            // Find the axis with maximum distance
+            const maxDist = Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz));
+            
+            // Create diagonal movement (all axes move simultaneously until one reaches target)
+            const steps = maxDist;
+            const stepX = dx / maxDist;
+            const stepY = dy / maxDist;
+            const stepZ = dz / maxDist;
+            
+            const points = [new THREE.Vector3(...start)];
+            
+            // Generate points along the Chebyshev path
+            for (let i = 1; i <= steps; i++) {
+                const x = start[0] + stepX * i;
+                const y = start[1] + stepY * i;
+                const z = start[2] + stepZ * i;
+                points.push(new THREE.Vector3(x, y, z));
+            }
+            
+            // Create the path visualization
+            for (let i = 0; i < points.length - 1; i++) {
+                const geometry = new THREE.BufferGeometry().setFromPoints([points[i], points[i + 1]]);
+                const material = new THREE.LineBasicMaterial({ 
+                    color: 0x2196f3, 
+                    linewidth: 6,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const line = new THREE.Line(geometry, material);
+                line.visible = showChebyshevPath;
+                chebyshevPath.push(line);
+                scene.add(line);
+            }
+            
+            // Add intermediate points every few steps
+            for (let i = 2; i < points.length - 1; i += 2) {
+                const sphereGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0x00ffff });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                sphere.position.copy(points[i]);
+                sphere.visible = showChebyshevPath;
+                chebyshevPath.push(sphere);
+                scene.add(sphere);
+            }
+            
+            // Add arrow at the end
+            if (points.length > 1) {
+                const direction = points[points.length - 1].clone().sub(points[points.length - 2]).normalize();
+                const arrowHelper = new THREE.ArrowHelper(
+                    direction, 
+                    points[points.length - 2], 
+                    points[points.length - 2].distanceTo(points[points.length - 1]) * 2, 
+                    0x2196f3, 
+                    0.8, 
+                    0.4
+                );
+                arrowHelper.visible = showChebyshevPath;
+                chebyshevPath.push(arrowHelper);
+                scene.add(arrowHelper);
+            }
+        }
+
+        function updateInfo(pA, pB, manhattan, euclidean, chebyshev, dx, dy, dz) {
+            document.getElementById('pointA').textContent = `(${pA.join(', ')})`;
+            document.getElementById('pointB').textContent = `(${pB.join(', ')})`;
+            
+            document.getElementById('manhattanResult').textContent = manhattan.toFixed(1);
+            document.getElementById('manhattanCalc').textContent = `${dx} + ${dy} + ${dz} = ${manhattan}`;
+            
+            document.getElementById('euclideanResult').textContent = euclidean.toFixed(2);
+            document.getElementById('euclideanCalc').textContent = `√[${dx*dx} + ${dy*dy} + ${dz*dz}] = √${dx*dx + dy*dy + dz*dz}`;
+            
+            document.getElementById('chebyshevResult').textContent = chebyshev.toFixed(1);
+            document.getElementById('chebyshevCalc').textContent = `max(${dx}, ${dy}, ${dz}) = ${chebyshev}`;
+        }
+
+        function changeExample(exampleNum) {
+            currentExample = exampleNum - 1;
+            createVisualization();
+        }
+
+        function toggleShape(shapeType) {
+            switch(shapeType) {
+                case 'manhattan':
+                    showManhattan = !showManhattan;
+                    if (manhattanShape) manhattanShape.visible = showManhattan;
+                    break;
+                case 'euclidean':
+                    showEuclidean = !showEuclidean;
+                    if (euclideanShape) euclideanShape.visible = showEuclidean;
+                    break;
+                case 'chebyshev':
+                    showChebyshev = !showChebyshev;
+                    if (chebyshevShape) chebyshevShape.visible = showChebyshev;
+                    break;
+            }
+        }
+
+        function togglePath(pathType) {
+            switch(pathType) {
+                case 'manhattan':
+                    showManhattanPath = !showManhattanPath;
+                    manhattanPath.forEach(item => item.visible = showManhattanPath);
+                    break;
+                case 'euclidean':
+                    showEuclideanPath = !showEuclideanPath;
+                    euclideanPath.forEach(item => item.visible = showEuclideanPath);
+                    break;
+                case 'chebyshev':
+                    showChebyshevPath = !showChebyshevPath;
+                    chebyshevPath.forEach(item => item.visible = showChebyshevPath);
+                    break;
+            }
+        }
+
+        function addMouseControls() {
+            let mouseDown = false;
+            let mouseX = 0;
+            let mouseY = 0;
+
+            renderer.domElement.addEventListener('mousedown', (event) => {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+
+            renderer.domElement.addEventListener('mousemove', (event) => {
+                if (!mouseDown) return;
+
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+
+            renderer.domElement.addEventListener('wheel', (event) => {
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                event.preventDefault();
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Gentle rotation for better visualization
+            if (manhattanShape && showManhattan) {
+                manhattanShape.rotation.x += 0.003;
+                manhattanShape.rotation.y += 0.005;
+            }
+            
+            if (euclideanShape && showEuclidean) {
+                euclideanShape.rotation.x += 0.002;
+                euclideanShape.rotation.z += 0.004;
+            }
+            
+            if (chebyshevShape && showChebyshev) {
+                chebyshevShape.rotation.y += 0.004;
+                chebyshevShape.rotation.z += 0.002;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Initialize the scene
+        init();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / 700;
+            camera.updateProjectionMatrix();
+            renderer.setSize(document.getElementById('container').offsetWidth, 700);
+        });
+    </script>
+</body>
+</html>
