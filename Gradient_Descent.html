@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradient Descent Explorer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .formula {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            margin: 20px 0;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        canvas {
+            display: block;
+            margin: 30px auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .results {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .results h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #ccc;
+        }
+        .result-label {
+            font-weight: bold;
+        }
+        .result-value {
+            color: #007bff;
+            font-family: monospace;
+        }
+        .quick-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            color: #856404;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gradient Descent Explorer</h1>
+        <div class="formula">f(x) = x³ - 3x² + 7</div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Starting Point: <span id="startValue">0.5</span></label>
+                <input type="range" id="startPoint" min="-1" max="3" step="0.1" value="0.5">
+            </div>
+            <div class="control-group">
+                <label>Learning Rate: <span id="lrValue">0.05</span></label>
+                <input type="range" id="learningRate" min="0.001" max="0.2" step="0.001" value="0.05">
+            </div>
+            <div class="control-group">
+                <label>Precision: <span id="precValue">0.001</span></label>
+                <input type="range" id="precision" min="0.0001" max="0.01" step="0.0001" value="0.001">
+            </div>
+        </div>
+
+        <div class="quick-buttons">
+            <button onclick="setStart(-0.5)">Start at -0.5</button>
+            <button onclick="setStart(0.5)">Start at 0.5</button>
+            <button onclick="setStart(1.5)">Start at 1.5</button>
+            <button onclick="setStart(2.5)">Start at 2.5</button>
+        </div>
+
+        <canvas id="canvas" width="800" height="400"></canvas>
+
+        <div class="results">
+            <h3>Results</h3>
+            <div class="result-item">
+                <span class="result-label">Local Minimum at:</span>
+                <span class="result-value" id="minX">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Function Value:</span>
+                <span class="result-value" id="minY">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Steps Taken:</span>
+                <span class="result-value" id="steps">-</span>
+            </div>
+        </div>
+
+        <div class="warning" id="warning">
+            <strong>Warning:</strong> The algorithm diverged! Try a smaller learning rate or a different starting point.
+        </div>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        
+        function f(x) {
+            return Math.pow(x, 3) - 3 * Math.pow(x, 2) + 7;
+        }
+        
+        function derivative(x) {
+            return 3 * Math.pow(x, 2) - 6 * x;
+        }
+        
+        function gradientDescent(startX, learningRate, precision) {
+            var x_new = startX;
+            var x_prev = startX - 1;
+            var path = [{x: x_new, y: f(x_new)}];
+            var steps = 0;
+            var maxSteps = 1000;
+            
+            while (Math.abs(x_new - x_prev) > precision && steps < maxSteps) {
+                x_prev = x_new;
+                var deriv = derivative(x_prev);
+                x_new = x_prev - learningRate * deriv;
+                
+                if (Math.abs(x_new) > 100 || !isFinite(x_new)) {
+                    return null;
+                }
+                
+                path.push({x: x_new, y: f(x_new)});
+                steps++;
+            }
+            
+            return {
+                minimum: x_new,
+                minValue: f(x_new),
+                steps: steps,
+                path: path
+            };
+        }
+        
+        function draw() {
+            var startX = parseFloat(document.getElementById('startPoint').value);
+            var lr = parseFloat(document.getElementById('learningRate').value);
+            var prec = parseFloat(document.getElementById('precision').value);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            var result = gradientDescent(startX, lr, prec);
+            
+            var warning = document.getElementById('warning');
+            if (result === null) {
+                warning.style.display = 'block';
+                document.getElementById('minX').textContent = 'DIVERGED';
+                document.getElementById('minY').textContent = 'DIVERGED';
+                document.getElementById('steps').textContent = 'N/A';
+                return;
+            } else {
+                warning.style.display = 'none';
+            }
+            
+            document.getElementById('minX').textContent = result.minimum.toFixed(6);
+            document.getElementById('minY').textContent = result.minValue.toFixed(6);
+            document.getElementById('steps').textContent = result.steps;
+            
+            // Draw function curve
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            for (var x = -1; x <= 3; x += 0.01) {
+                var y = f(x);
+                var canvasX = ((x + 1) / 4) * canvas.width;
+                var canvasY = canvas.height - ((y - 3) / 4) * canvas.height;
+                
+                if (x === -1) {
+                    ctx.moveTo(canvasX, canvasY);
+                } else {
+                    ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw descent path
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            for (var i = 0; i < result.path.length; i++) {
+                var point = result.path[i];
+                var canvasX = ((point.x + 1) / 4) * canvas.width;
+                var canvasY = canvas.height - ((point.y - 3) / 4) * canvas.height;
+                
+                if (i === 0) {
+                    ctx.moveTo(canvasX, canvasY);
+                } else {
+                    ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw points
+            ctx.fillStyle = '#00ff00';
+            for (var i = 0; i < result.path.length; i++) {
+                var point = result.path[i];
+                var canvasX = ((point.x + 1) / 4) * canvas.width;
+                var canvasY = canvas.height - ((point.y - 3) / 4) * canvas.height;
+                ctx.beginPath();
+                ctx.arc(canvasX, canvasY, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.fillText('x = -1', 10, canvas.height - 10);
+            ctx.fillText('x = 3', canvas.width - 40, canvas.height - 10);
+        }
+        
+        function setStart(value) {
+            document.getElementById('startPoint').value = value;
+            document.getElementById('startValue').textContent = value.toFixed(1);
+            draw();
+        }
+        
+        document.getElementById('startPoint').addEventListener('input', function() {
+            document.getElementById('startValue').textContent = this.value;
+            draw();
+        });
+        
+        document.getElementById('learningRate').addEventListener('input', function() {
+            document.getElementById('lrValue').textContent = parseFloat(this.value).toFixed(3);
+            draw();
+        });
+        
+        document.getElementById('precision').addEventListener('input', function() {
+            document.getElementById('precValue').textContent = parseFloat(this.value).toFixed(4);
+            draw();
+        });
+        
+        draw();
+    </script>
+</body>
+</html>
