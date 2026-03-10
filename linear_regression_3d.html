@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Linear Regression Terms - Interactive 3D (Fixed)</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: #0f1724;
+            color: #e6eef8;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(12, 18, 36, 0.9);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.6);
+        }
+        .header { text-align:center; margin-bottom:12px }
+        .header h1 { margin: 0; color: #7ee7d9; font-size: 1.6rem }
+        .content { display:flex; gap: 16px; align-items:flex-start; }
+        .left-panel, .right-panel { width: 260px; }
+        .center-panel { flex:1; text-align:center; }
+        #canvas-container { border-radius:8px; background:#000; display:inline-block; width:100%; height:520px; overflow:hidden; }
+        .panel { background: rgba(20,24,44,0.6); border-radius:8px; padding:10px; margin-bottom:12px; }
+        .term-button { width:100%; margin:6px 0; padding:8px; text-align:left; border-radius:6px; background: rgba(60,60,90,0.6); border:1px solid rgba(255,255,255,0.04); color:#e6eef8; cursor:pointer; }
+        .term-button.active { box-shadow: 0 0 0 2px rgba(126,231,217,0.12); background: rgba(78,205,196,0.08); }
+        .btn { padding:8px 12px; border-radius:6px; border:none; background:#7ee7d9; color:#022; cursor:pointer; margin:6px; }
+        .legend-item { display:flex; gap:8px; align-items:center; font-size:13px; color:#cfeff0 }
+        .legend-color { width:12px;height:12px;border-radius:3px; margin-right:6px; }
+        #tooltip { position: absolute; pointer-events:none; background:#0b1220cc; color:#e6f9f2; padding:8px 10px; border-radius:6px; font-size:13px; display:none; box-shadow:0 6px 20px rgba(0,0,0,0.6); }
+        .small { font-size:12px; color:#bcdad6; }
+        pre.small { white-space:pre-wrap; word-break:break-word; margin:0; }
+        /* ensure canvas container scales on small screens */
+        @media (max-width: 980px) {
+            .content { flex-direction: column; }
+            .left-panel, .right-panel { width: auto; }
+            #canvas-container { height: 420px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Linear Regression Terms — Interactive 3D</h1>
+        <div class="small">Orbit & zoom with the mouse. Hover points for details. Click terms to highlight.</div>
+    </div>
+
+    <div class="content">
+        <div class="left-panel">
+            <div class="panel">
+                <h3 style="margin-top:0">Terms</h3>
+                <div id="term-buttons"></div>
+            </div>
+
+            <div class="panel">
+                <h3 style="margin-top:0">Legend</h3>
+                <div class="legend-item"><div class="legend-color" style="background:#ff4757"></div><div>Actual points (x, y, z=0)</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#3742fa"></div><div>Predicted points (x, ŷ, z=ŷ)</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffffff"></div><div>Residuals (lines)</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#f9ca24"></div><div>Mean line (ȳ = ŷ)</div></div>
+            </div>
+        </div>
+
+        <div class="center-panel">
+            <div id="canvas-container"></div>
+            <div style="margin-top:10px;">
+                <button id="toggleRotate" class="btn">Toggle Auto-Rotate</button>
+                <button id="resetBtn" class="btn">Reset View</button>
+            </div>
+            <div style="margin-top:6px" class="small">Tip: Drag to orbit, scroll to zoom, right-drag or two-finger drag to pan.</div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel">
+                <h3 id="selected-term">Selected: R²</h3>
+                <div class="small">
+                    <p><strong>Description</strong>: <span id="term-description"></span></p>
+                    <p><strong>Value</strong>: <span id="term-value"></span></p>
+                    <p><strong>Interpretation</strong>: <span id="term-interpretation"></span></p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 style="margin-top:0">Key Formulas (correct)</h3>
+                <div class="small">
+                    <pre class="small">
+SST = Σ(yi − ȳ)²        (total variation)
+SSR = Σ(ŷi − ȳ)²        (explained / regression)
+SSE = Σ(yi − ŷi)²        (residual / unexplained)
+SST = SSR + SSE
+
+R² = SSR / SST          (0 .. 1)
+MSE = SSE / n
+RMSE = √MSE
+R = corr(y, ŷ) ≈ sign(slope)·√R² (simple linear)
+                    </pre>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 style="margin-top:0">Notes</h3>
+                <div class="small">
+                    <p>In this visualization: <strong>x</strong> = predictor, <strong>y</strong> = actual response, <strong>z</strong> = predicted response (ŷ).</p>
+                    <p>Residuals are shown as 3D lines between actual points (z=0 plane) and predicted points (lifted to z=ŷ).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/*
+ Fixed version:
+  - corrected SST/SSR/SSE definitions and computations
+  - correct MSE/RMSE formulas
+  - added simplified orbit controls
+  - added Raycaster hover tooltip
+  - responsive canvas resizing
+  - dynamically update term values and labels
+*/
+
+(function () {
+    // DOM refs
+    const container = document.getElementById('canvas-container');
+    const tooltip = document.getElementById('tooltip');
+    const termButtonsDiv = document.getElementById('term-buttons');
+    const selectedTermTitle = document.getElementById('selected-term');
+    const termDescription = document.getElementById('term-description');
+    const termValueDom = document.getElementById('term-value');
+    const termInterpretation = document.getElementById('term-interpretation');
+    const toggleRotateBtn = document.getElementById('toggleRotate');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Scene basics
+    let scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x071022);
+
+    let camera, renderer, raycaster;
+    let actualGroup = new THREE.Group();
+    let predGroup = new THREE.Group();
+    let residualsGroup = new THREE.Group();
+    let regLine = null;
+    let meanLine = null;
+    let termSpheres = {};
+    let autoRotate = false;
+    
+    // Simple orbit controls variables
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let spherical = new THREE.Spherical();
+    let target = new THREE.Vector3(0, 0, 0);
+
+    // Data (sample)
+    const n = 12;
+    const x = [];
+    const yTrue = [];
+    let slopeTrue = 0.6;
+    let interceptTrue = 2.0;
+    for (let i = 0; i < n; i++) {
+        const xi = i * 0.8;
+        // noisy true value
+        const yi = interceptTrue + slopeTrue * xi + (Math.random() - 0.5) * 1.6;
+        x.push(xi);
+        yTrue.push(yi);
+    }
+
+    // compute regression (OLS) on the generated data
+    function fitOLS(xArr, yArr) {
+        const m = xArr.length;
+        const meanX = xArr.reduce((a,b)=>a+b,0)/m;
+        const meanY = yArr.reduce((a,b)=>a+b,0)/m;
+        let num = 0, den = 0;
+        for (let i=0;i<m;i++){
+            num += (xArr[i]-meanX)*(yArr[i]-meanY);
+            den += (xArr[i]-meanX)*(xArr[i]-meanX);
+        }
+        const slope = den === 0 ? 0 : num/den;
+        const intercept = meanY - slope*meanX;
+        return {slope, intercept, meanX, meanY};
+    }
+
+    let model = fitOLS(x, yTrue);
+    let yPred = x.map(xi => model.slope * xi + model.intercept);
+
+    // compute stats
+    function computeStats(yArr, yHatArr) {
+        const m = yArr.length;
+        const meanY = yArr.reduce((a,b)=>a+b,0)/m;
+        let SST = 0, SSR = 0, SSE = 0;
+        for (let i=0;i<m;i++){
+            SST += Math.pow(yArr[i] - meanY, 2);
+            SSR += Math.pow(yHatArr[i] - meanY, 2);   // explained
+            SSE += Math.pow(yArr[i] - yHatArr[i], 2);  // residuals
+        }
+        // numeric guard: SST = SSR + SSE (rounding aside)
+        const R2 = SST === 0 ? 0 : SSR / SST;
+        const MSE = SSE / m;
+        const RMSE = Math.sqrt(MSE);
+        // Pearson correlation between y and yHat
+        const meanYHat = yHatArr.reduce((a,b)=>a+b,0)/m;
+        let cov = 0, varY=0, varYHat=0;
+        for (let i=0;i<m;i++){
+            cov += (yArr[i]-meanY)*(yHatArr[i]-meanYHat);
+            varY += Math.pow(yArr[i]-meanY,2);
+            varYHat += Math.pow(yHatArr[i]-meanYHat,2);
+        }
+        const R = (Math.sqrt(varY)===0 || Math.sqrt(varYHat)===0) ? 0 : cov / (Math.sqrt(varY)*Math.sqrt(varYHat));
+        // population and sample variance of y
+        const popVar = varY / m;
+        const sampleVar = varY / (m - 1);
+        return {SST, SSR, SSE, R2, MSE, RMSE, R, popVar, sampleVar, meanY};
+    }
+
+    let stats = computeStats(yTrue, yPred);
+
+    // Term info object (dynamically filled)
+    function buildTerms(statsObj, modelObj) {
+        return {
+            'R': {
+                value: statsObj.R.toFixed(3),
+                description: 'Pearson correlation coefficient between y and ŷ',
+                interpretation: 'Strength/direction of linear relationship (−1..1)',
+                color: 0xff6b6b,
+                position: [ (modelObj.slope>0?2:-2), 3 + Math.sign(modelObj.slope), -1 ]
+            },
+            'R²': {
+                value: statsObj.R2.toFixed(3),
+                description: 'Coefficient of determination',
+                interpretation: `${(statsObj.R2*100).toFixed(1)}% of variance explained`,
+                color: 0x4ecdc4,
+                position: [ -2, 2.6, 2 ]
+            },
+            'MSE': {
+                value: statsObj.MSE.toFixed(3),
+                description: 'Mean Squared Error (SSE / n)',
+                interpretation: 'Average squared residual (lower is better)',
+                color: 0x45b7d1,
+                position: [ 2.6, -1.8, 1.6 ]
+            },
+            'RMSE': {
+                value: statsObj.RMSE.toFixed(3),
+                description: 'Root Mean Squared Error',
+                interpretation: 'Typical prediction error scale (same units as y)',
+                color: 0x96ceb4,
+                position: [ -3.0, 1.0, 1.8 ]
+            },
+            'SST': {
+                value: statsObj.SST.toFixed(3),
+                description: 'Total Sum of Squares',
+                interpretation: 'Total variance of y (Σ(yi−ȳ)²)',
+                color: 0xffeaa7,
+                position: [ 1.0, -2.4, -2.2 ]
+            },
+            'SSR': {
+                value: statsObj.SSR.toFixed(3),
+                description: 'Regression sum of squares (explained)',
+                interpretation: 'Variation explained by model (Σ(ŷi−ȳ)²)',
+                color: 0x6c5ce7,
+                position: [ -1.2, -0.6, 2.8 ]
+            },
+            'SSE': {
+                value: statsObj.SSE.toFixed(3),
+                description: 'Residual sum of squares (unexplained)',
+                interpretation: 'Remaining variation (Σ(yi−ŷi)²)',
+                color: 0xfd79a8,
+                position: [ 3.0, 0.3, -1.8 ]
+            },
+            'σ² (pop)': {
+                value: statsObj.popVar.toFixed(3),
+                description: 'Population variance of y',
+                interpretation: 'Variance (population)',
+                color: 0xe17055,
+                position: [ 0.0, 2.2, -2.6 ]
+            },
+            'σ² (sample)': {
+                value: statsObj.sampleVar.toFixed(3),
+                description: 'Sample variance (ddof=1)',
+                interpretation: 'Unbiased variance estimate',
+                color: 0xffb86b,
+                position: [ -0.8, -2.0, -3.2 ]
+            }
+        };
+    }
+
+    let terms = buildTerms(stats, model);
+
+    // Setup scene, camera, renderer
+    function initThree() {
+        // camera & renderer
+        const rect = container.getBoundingClientRect();
+        camera = new THREE.PerspectiveCamera(60, rect.width / rect.height, 0.1, 2000);
+        camera.position.set(8, 8, 12);
+        camera.lookAt(target);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(rect.width, rect.height);
+        container.innerHTML = '';
+        container.appendChild(renderer.domElement);
+
+        // lights
+        const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+        scene.add(ambient);
+        const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+        dir.position.set(6, 10, 4);
+        scene.add(dir);
+
+        // helpers
+        const axes = new THREE.AxesHelper(6);
+        scene.add(axes);
+        const grid = new THREE.GridHelper(14, 14, 0x2b3a4a, 0x132028);
+        grid.rotation.x = Math.PI / 2;
+        scene.add(grid);
+
+        // groups
+        scene.add(actualGroup);
+        scene.add(predGroup);
+        scene.add(residualsGroup);
+
+        // raycaster
+        raycaster = new THREE.Raycaster();
+
+        // simplified orbit controls
+        setupControls();
+
+        // responsive
+        window.addEventListener('resize', onWindowResize);
+    }
+    
+    function setupControls() {
+        renderer.domElement.addEventListener('mousedown', onMouseDown);
+        renderer.domElement.addEventListener('mousemove', onMouseMove);
+        renderer.domElement.addEventListener('mouseup', onMouseUp);
+        renderer.domElement.addEventListener('wheel', onWheel);
+    }
+    
+    function onMouseDown(event) {
+        isDragging = true;
+        previousMousePosition.x = event.clientX;
+        previousMousePosition.y = event.clientY;
+    }
+    
+    function onMouseMove(event) {
+        if (!isDragging) return;
+        
+        const deltaX = event.clientX - previousMousePosition.x;
+        const deltaY = event.clientY - previousMousePosition.y;
+        
+        // Convert to spherical coordinates
+        spherical.setFromVector3(camera.position.clone().sub(target));
+        spherical.theta -= deltaX * 0.01;
+        spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + deltaY * 0.01));
+        
+        // Update camera position
+        camera.position.setFromSpherical(spherical).add(target);
+        camera.lookAt(target);
+        
+        previousMousePosition.x = event.clientX;
+        previousMousePosition.y = event.clientY;
+    }
+    
+    function onMouseUp() {
+        isDragging = false;
+    }
+    
+    function onWheel(event) {
+        const scale = event.deltaY > 0 ? 1.1 : 0.9;
+        camera.position.sub(target).multiplyScalar(scale).add(target);
+        event.preventDefault();
+    }
+
+    // create visual objects for points, predicted points, residuals, regression line, mean line
+    function buildVisualization() {
+        // clear previous
+        actualGroup.clear(); predGroup.clear(); residualsGroup.clear();
+        if (regLine) { scene.remove(regLine); regLine = null; }
+        if (meanLine) { scene.remove(meanLine); meanLine = null; }
+
+        // actual points (z=0 plane)
+        for (let i=0;i<n;i++){
+            const geom = new THREE.SphereGeometry(0.12, 14, 12);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff4757, metalness:0.2, roughness:0.7 });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.set(x[i], yTrue[i], 0);
+            mesh.userData = { type: 'actual', index: i, x: x[i], yTrue: yTrue[i], yPred: yPred[i] };
+            actualGroup.add(mesh);
+        }
+
+        // predicted points (lifted: z = ŷ)
+        for (let i=0;i<n;i++){
+            const geom = new THREE.SphereGeometry(0.09, 12, 10);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x3742fa, metalness:0.3, roughness:0.6 });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.set(x[i], yPred[i], yPred[i]); // z = ŷ for lift
+            mesh.userData = { type: 'pred', index: i, x: x[i], yTrue: yTrue[i], yPred: yPred[i] };
+            predGroup.add(mesh);
+        }
+
+        // SSE arrows: residual lines connecting actual -> predicted (WHITE)
+        for (let i=0;i<n;i++){
+            const p1 = new THREE.Vector3(x[i], yTrue[i], 0);
+            const p2 = new THREE.Vector3(x[i], yPred[i], yPred[i]);
+            
+            // Create arrow for SSE (residual)
+            const direction = new THREE.Vector3().subVectors(p2, p1);
+            const length = direction.length();
+            if (length > 0.01) {
+                const arrowHelper = new THREE.ArrowHelper(direction.normalize(), p1, length, 0xffffff, length*0.2, length*0.1);
+                arrowHelper.userData = { type: 'sse_arrow', index: i };
+                residualsGroup.add(arrowHelper);
+            }
+        }
+
+        // SST arrows: from mean to actual points (YELLOW)
+        const mY = stats.meanY;
+        for (let i=0;i<n;i++){
+            const meanPoint = new THREE.Vector3(x[i], mY, 0);
+            const actualPoint = new THREE.Vector3(x[i], yTrue[i], 0);
+            
+            const direction = new THREE.Vector3().subVectors(actualPoint, meanPoint);
+            const length = Math.abs(direction.length());
+            if (length > 0.01) {
+                const arrowHelper = new THREE.ArrowHelper(direction.normalize(), meanPoint, length, 0xffeaa7, length*0.2, length*0.1);
+                arrowHelper.userData = { type: 'sst_arrow', index: i };
+                actualGroup.add(arrowHelper);
+            }
+        }
+
+        // SSR arrows: from mean to predicted points (PURPLE)
+        for (let i=0;i<n;i++){
+            const meanPoint = new THREE.Vector3(x[i], mY, mY); // on the mean surface
+            const predPoint = new THREE.Vector3(x[i], yPred[i], yPred[i]);
+            
+            const direction = new THREE.Vector3().subVectors(predPoint, meanPoint);
+            const length = Math.abs(direction.length());
+            if (length > 0.01) {
+                const arrowHelper = new THREE.ArrowHelper(direction.normalize(), meanPoint, length, 0x6c5ce7, length*0.2, length*0.1);
+                arrowHelper.userData = { type: 'ssr_arrow', index: i };
+                predGroup.add(arrowHelper);
+            }
+        }
+
+        // regression line (connect predicted points)
+        const regPositions = new Float32Array(n * 3);
+        for (let i=0;i<n;i++){
+            regPositions[i*3 + 0] = x[i];
+            regPositions[i*3 + 1] = yPred[i];
+            regPositions[i*3 + 2] = yPred[i];
+        }
+        const regGeom = new THREE.BufferGeometry();
+        regGeom.setAttribute('position', new THREE.BufferAttribute(regPositions, 3));
+        const regMat = new THREE.LineBasicMaterial({ color: 0x3742fa, linewidth: 2 });
+        regLine = new THREE.Line(regGeom, regMat);
+        scene.add(regLine);
+
+        // mean line (horizontal in x, yMean on y axis)
+        const minX = Math.min(...x) - 1;
+        const maxX = Math.max(...x) + 1;
+        const meanPositions = new Float32Array([minX, mY, 0, maxX, mY, 0]);
+        const meanGeom = new THREE.BufferGeometry();
+        meanGeom.setAttribute('position', new THREE.BufferAttribute(meanPositions, 3));
+        const meanMat = new THREE.LineBasicMaterial({ color: 0xf9ca24, linewidth: 3 });
+        meanLine = new THREE.Line(meanGeom, meanMat);
+        scene.add(meanLine);
+
+        // mean surface line (lifted version)
+        const meanSurfacePositions = new Float32Array([minX, mY, mY, maxX, mY, mY]);
+        const meanSurfaceGeom = new THREE.BufferGeometry();
+        meanSurfaceGeom.setAttribute('position', new THREE.BufferAttribute(meanSurfacePositions, 3));
+        const meanSurfaceMat = new THREE.LineBasicMaterial({ color: 0xf9ca24, linewidth: 2, opacity: 0.7, transparent: true });
+        const meanSurfaceLine = new THREE.Line(meanSurfaceGeom, meanSurfaceMat);
+        scene.add(meanSurfaceLine);
+    }
+
+    // create term spheres and labels
+    function buildTermSpheres() {
+        // remove old spheres
+        Object.values(termSpheres).forEach(s => scene.remove(s));
+        termSpheres = {};
+
+        const termNames = Object.keys(terms);
+        for (let i=0;i<termNames.length;i++){
+            const t = termNames[i];
+            const info = terms[t];
+
+            const geom = new THREE.SphereGeometry(0.25, 16, 12);
+            const mat = new THREE.MeshStandardMaterial({ color: info.color, opacity: 0.9, transparent: true, metalness:0.2, roughness:0.7 });
+            const sphere = new THREE.Mesh(geom, mat);
+            sphere.position.set(info.position[0], info.position[1], info.position[2]);
+            sphere.userData = { type: 'term', key: t };
+            scene.add(sphere);
+            termSpheres[t] = sphere;
+
+            // text label as sprite
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 80;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(0,0,0,0)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 26px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(t, canvas.width/2, 32);
+            ctx.font = '16px Arial';
+            ctx.fillText(info.value, canvas.width/2, 58);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            const sprMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+            const sprite = new THREE.Sprite(sprMat);
+            sprite.scale.set(1.6, 0.5, 1);
+            sprite.position.set(info.position[0], info.position[1] + 0.6, info.position[2]);
+            scene.add(sprite);
+        }
+    }
+
+    // Populate term buttons (left panel)
+    function buildTermButtons() {
+        termButtonsDiv.innerHTML = '';
+        const termNames = Object.keys(terms);
+        termNames.forEach((t, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'term-button';
+            btn.textContent = `${t} — ${terms[t].value}`;
+            btn.addEventListener('click', () => selectTerm(t, btn));
+            termButtonsDiv.appendChild(btn);
+            if (idx === 1) { // default select R²
+                btn.classList.add('active');
+                updateRightPanel(t);
+                highlightTerm(t);
+            }
+        });
+    }
+
+    // select and highlight term sphere
+    function selectTerm(name, btnEl) {
+        // remove active from all
+        document.querySelectorAll('.term-button').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+        updateRightPanel(name);
+        highlightTerm(name);
+    }
+
+    function updateRightPanel(name) {
+        const info = terms[name];
+        selectedTermTitle.textContent = `Selected: ${name}`;
+        termDescription.textContent = info.description;
+        termValueDom.textContent = info.value;
+        termInterpretation.textContent = info.interpretation;
+    }
+
+    function highlightTerm(name) {
+        // dim others & highlight selected
+        Object.entries(termSpheres).forEach(([k, mesh]) => {
+            if (k === name) {
+                mesh.scale.set(1.18,1.18,1.18);
+                mesh.material.opacity = 1.0;
+            } else {
+                mesh.scale.set(1,1,1);
+                mesh.material.opacity = 0.45;
+            }
+            mesh.material.needsUpdate = true;
+        });
+    }
+
+    // Raycasting for hover tooltips
+    let mouse = new THREE.Vector2();
+    function onPointerMove(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = - ((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        // check actual and predicted spheres
+        const items = [...actualGroup.children, ...predGroup.children];
+        const intersects = raycaster.intersectObjects(items, false);
+
+        if (intersects.length > 0) {
+            const it = intersects[0].object;
+            const ud = it.userData;
+            const pageX = event.clientX;
+            const pageY = event.clientY;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (pageX + 14) + 'px';
+            tooltip.style.top = (pageY + 10) + 'px';
+
+            let html = '';
+            if (ud.type === 'actual' || ud.type === 'pred') {
+                const residual = (ud.yTrue - ud.yPred);
+                html += `<strong>index</strong>: ${ud.index}<br>`;
+                html += `<strong>x</strong>: ${ud.x.toFixed(3)}<br>`;
+                html += `<strong>y (actual)</strong>: ${ud.yTrue.toFixed(3)}<br>`;
+                html += `<strong>ŷ (pred)</strong>: ${ud.yPred.toFixed(3)}<br>`;
+                html += `<strong>residual</strong>: ${residual.toFixed(3)}`;
+            }
+            tooltip.innerHTML = html;
+        } else {
+            tooltip.style.display = 'none';
+        }
+    }
+
+    function onWindowResize() {
+        const rect = container.getBoundingClientRect();
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(rect.width, rect.height);
+    }
+
+    // animation loop
+    function animate() {
+        requestAnimationFrame(animate);
+        if (autoRotate) {
+            scene.rotation.y += 0.002;
+        }
+        renderer.render(scene, camera);
+    }
+
+    // initial build & wiring
+    function start() {
+        initThree();
+        buildVisualization();
+        buildTermSpheres();
+        buildTermButtons();
+
+        // event listeners
+        renderer.domElement.addEventListener('pointermove', onPointerMove);
+        toggleRotateBtn.addEventListener('click', () => { autoRotate = !autoRotate; toggleRotateBtn.textContent = autoRotate ? 'Stop Auto-Rotate' : 'Start Auto-Rotate'; });
+        resetBtn.addEventListener('click', () => {
+            camera.position.set(8, 8, 12);
+            camera.lookAt(target);
+        });
+
+        // start animation
+        animate();
+    }
+
+    // run
+    start();
+
+})();
+</script>
+</body>
+</html>
