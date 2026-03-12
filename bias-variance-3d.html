@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bias–Variance Tradeoff · 3D Explainer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #06060e;
+    --panel: #0d0d1a;
+    --border: #1e1e3a;
+    --accent1: #00e5ff;
+    --accent2: #ff4d6d;
+    --accent3: #69ff9c;
+    --accent4: #ffb347;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #canvas-container {
+    position: absolute;
+    inset: 0;
+  }
+
+  canvas { display: block; }
+
+  /* TOP BAR */
+  #topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(180deg, rgba(6,6,14,0.95) 0%, transparent 100%);
+    z-index: 10;
+  }
+
+  #topbar h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent1);
+    font-weight: 700;
+  }
+
+  #topbar .subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* SCENE SELECTOR */
+  #scene-nav {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+    background: rgba(13,13,26,0.85);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 6px;
+    backdrop-filter: blur(10px);
+  }
+
+  .scene-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .scene-btn:hover { color: var(--text); }
+
+  .scene-btn.active {
+    background: var(--accent1);
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* SIDE PANEL */
+  #info-panel {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 280px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card {
+    background: rgba(13,13,26,0.88);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s;
+  }
+
+  .card.highlight { border-color: var(--accent1); }
+
+  .card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .card-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .bias-val { color: var(--accent2); }
+  .var-val  { color: var(--accent1); }
+  .total-val { color: var(--accent3); }
+
+  /* SLIDER PANEL */
+  #controls {
+    position: absolute;
+    left: 24px;
+    bottom: 80px;
+    width: 260px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ctrl-group {
+    background: rgba(13,13,26,0.88);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    backdrop-filter: blur(12px);
+  }
+
+  .ctrl-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ctrl-label span {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .ctrl-label .val-complexity { color: var(--accent4); }
+  .ctrl-label .val-lambda     { color: var(--accent3); }
+
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  #complexity-slider {
+    background: linear-gradient(90deg, var(--accent2), var(--accent4), var(--accent1));
+  }
+
+  #lambda-slider {
+    background: linear-gradient(90deg, var(--accent1), var(--accent3));
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 8px rgba(0,229,255,0.6);
+    cursor: pointer;
+  }
+
+  /* LEGEND */
+  #legend {
+    position: absolute;
+    left: 24px;
+    top: 70px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(13,13,26,0.88);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    backdrop-filter: blur(12px);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* FORMULA */
+  #formula {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    background: rgba(13,13,26,0.9);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 10px 24px;
+    letter-spacing: 0.05em;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+  }
+
+  .f-red   { color: var(--accent2); }
+  .f-blue  { color: var(--accent1); }
+  .f-green { color: var(--accent3); }
+  .f-muted { color: var(--muted); }
+
+  /* TOOLTIP / ANNOTATION */
+  #annotation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #annotation h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent1);
+    opacity: 0.7;
+  }
+
+  /* LOADING */
+  #loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    z-index: 100;
+    gap: 16px;
+    transition: opacity 0.6s;
+  }
+
+  #loading h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--accent1);
+    text-transform: uppercase;
+  }
+
+  .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent1);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── BEST SCORE BANNER ───────────────────────────── */
+  #best-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.7);
+    z-index: 50;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  #best-banner.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #best-banner .trophy {
+    font-size: 52px;
+    line-height: 1;
+    filter: drop-shadow(0 0 20px #ffb347);
+    animation: trophyBob 1.4s ease-in-out infinite;
+  }
+  #best-banner .banner-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ffb347;
+    text-shadow: 0 0 24px #ffb347, 0 0 48px #ffb347aa;
+    margin-top: 8px;
+  }
+  #best-banner .banner-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #69ff9c;
+    letter-spacing: 0.12em;
+    margin-top: 4px;
+  }
+  @keyframes trophyBob {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+
+  /* ── SCORE METER ─────────────────────────────────── */
+  #score-meter {
+    position: absolute;
+    right: 24px;
+    bottom: 80px;
+    width: 280px;
+    z-index: 10;
+    background: rgba(13,13,26,0.88);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.4s;
+  }
+  #score-meter.optimal { border-color: #ffb347; box-shadow: 0 0 20px #ffb34733; }
+  #score-meter .sm-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+  #score-meter .sm-label span { color: var(--accent3); font-size: 12px; }
+  .score-bar-track {
+    width: 100%;
+    height: 8px;
+    background: #1e1e3a;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s, background 0.3s;
+  }
+  .score-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding: 4px 0 2px;
+  }
+
+  /* ── DATASET SWITCHER ────────────────────────────── */
+  #dataset-switcher {
+    position: absolute;
+    left: 24px;
+    bottom: 80px;
+    width: 260px;
+    z-index: 10;
+    background: rgba(13,13,26,0.88);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    backdrop-filter: blur(12px);
+    display: none;
+  }
+  #dataset-switcher.visible { display: block; }
+  .ds-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .ds-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  .ds-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 9px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.25s;
+    text-align: center;
+  }
+  .ds-btn:hover { color: var(--text); border-color: #3a3a5a; }
+  .ds-btn.active { background: rgba(0,229,255,0.12); border-color: var(--accent1); color: var(--accent1); }
+  .ds-btn .ds-icon { font-size: 16px; display: block; margin-bottom: 3px; }
+
+  /* ── PULSE RING on 3D (CSS overlay) ─────────────── */
+  #pulse-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 0;
+    opacity: 0;
+    transition: opacity 0.5s;
+    box-shadow: inset 0 0 80px 20px #ffb34722;
+  }
+  #pulse-overlay.active {
+    opacity: 1;
+    animation: pulseRing 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseRing {
+    0%,100% { box-shadow: inset 0 0 60px 10px #ffb34711; }
+    50%      { box-shadow: inset 0 0 120px 30px #ffb34744; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <h2>Initializing 3D Scene</h2>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- Best score celebration -->
+<div id="pulse-overlay"></div>
+<div id="best-banner">
+  <div class="trophy">🏆</div>
+  <div class="banner-title">Optimal Point!</div>
+  <div class="banner-sub" id="banner-sub-text">You found the sweet spot</div>
+</div>
+
+<!-- Score meter (bottom right) -->
+<div id="score-meter">
+  <div class="sm-label">Score — how close to optimal <span id="score-pct">0%</span></div>
+  <div class="score-bar-track">
+    <div class="score-bar-fill" id="score-bar" style="width:0%;background:#ff4d6d"></div>
+  </div>
+  <div class="score-status" id="score-status">Adjust sliders to minimise total error</div>
+</div>
+
+<!-- Dataset switcher (shown only on Scene 3) -->
+<div id="dataset-switcher">
+  <div class="ds-label">Dataset</div>
+  <div class="ds-grid">
+    <button class="ds-btn active" data-ds="sine"><span class="ds-icon">〜</span>Sine Wave</button>
+    <button class="ds-btn" data-ds="linear"><span class="ds-icon">╱</span>Linear</button>
+    <button class="ds-btn" data-ds="quad"><span class="ds-icon">∪</span>Quadratic</button>
+    <button class="ds-btn" data-ds="cluster"><span class="ds-icon">⁘</span>Clusters</button>
+  </div>
+</div>
+
+<div id="topbar">
+  <h1>Bias–Variance Tradeoff</h1>
+  <div class="subtitle">Interactive 3D Explainer · Machine Learning</div>
+</div>
+
+<div id="scene-nav">
+  <button class="scene-btn active" data-scene="0">Error Surface</button>
+  <button class="scene-btn" data-scene="1">Bias vs Variance</button>
+  <button class="scene-btn" data-scene="2">Regularization</button>
+  <button class="scene-btn" data-scene="3">Fit Landscape</button>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#ff4d6d"></div>Bias²</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00e5ff"></div>Variance</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#69ff9c"></div>Total Error</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffb347"></div>Optimal Point</div>
+</div>
+
+<div id="info-panel">
+  <div class="card">
+    <div class="card-label">Bias²</div>
+    <div class="card-value bias-val" id="val-bias">0.80</div>
+    <div class="card-desc">Error from wrong assumptions. High bias = underfitting.</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Variance</div>
+    <div class="card-value var-val" id="val-var">0.10</div>
+    <div class="card-desc">Sensitivity to training data fluctuations. High variance = overfitting.</div>
+  </div>
+  <div class="card highlight">
+    <div class="card-label">Total Error</div>
+    <div class="card-value total-val" id="val-total">0.98</div>
+    <div class="card-desc">Bias² + Variance + Irreducible Noise</div>
+  </div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-group">
+    <div class="ctrl-label">
+      Model Complexity
+      <span class="val-complexity" id="complexity-display">3</span>
+    </div>
+    <input type="range" id="complexity-slider" min="1" max="10" value="3" step="0.1">
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">
+      λ Regularization
+      <span class="val-lambda" id="lambda-display">0.00</span>
+    </div>
+    <input type="range" id="lambda-slider" min="0" max="5" value="0" step="0.05">
+  </div>
+</div>
+
+<div id="formula">
+  <span class="f-muted">E[L] =</span>
+  <span class="f-red"> Bias²</span>
+  <span class="f-muted"> + </span>
+  <span class="f-blue">Variance</span>
+  <span class="f-muted"> + </span>
+  <span class="f-green">σ²</span>
+</div>
+
+<script>
+// ─── THREE.JS SETUP ─────────────────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x06060e, 1);
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x06060e, 0.04);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(12, 10, 14);
+camera.lookAt(0, 0, 0);
+
+// Simple orbit
+let isDragging = false, prevMouse = { x: 0, y: 0 };
+let theta = 0.5, phi = 0.9, radius = 20;
+let targetTheta = theta, targetPhi = phi;
+
+renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('mouseup', () => isDragging = false);
+renderer.domElement.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = (e.clientX - prevMouse.x) * 0.005;
+  const dy = (e.clientY - prevMouse.y) * 0.005;
+  targetTheta -= dx;
+  targetPhi = Math.max(0.2, Math.min(1.4, targetPhi - dy));
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('wheel', e => {
+  radius = Math.max(8, Math.min(35, radius + e.deltaY * 0.02));
+});
+
+// Touch support
+renderer.domElement.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+});
+renderer.domElement.addEventListener('touchend', () => isDragging = false);
+renderer.domElement.addEventListener('touchmove', e => {
+  if (!isDragging || e.touches.length !== 1) return;
+  const dx = (e.touches[0].clientX - prevMouse.x) * 0.005;
+  const dy = (e.touches[0].clientY - prevMouse.y) * 0.005;
+  targetTheta -= dx; targetPhi = Math.max(0.2, Math.min(1.4, targetPhi - dy));
+  prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+});
+
+// Lighting
+const ambient = new THREE.AmbientLight(0x111133, 2);
+scene.add(ambient);
+const pt1 = new THREE.PointLight(0x00e5ff, 3, 50);
+pt1.position.set(8, 12, 8);
+scene.add(pt1);
+const pt2 = new THREE.PointLight(0xff4d6d, 2, 40);
+pt2.position.set(-8, 6, -4);
+scene.add(pt2);
+const pt3 = new THREE.PointLight(0x69ff9c, 1.5, 30);
+pt3.position.set(0, 8, -10);
+scene.add(pt3);
+
+// Grid
+function makeGrid() {
+  const g = new THREE.GridHelper(24, 24, 0x1e1e3a, 0x1e1e3a);
+  g.position.y = -0.01;
+  return g;
+}
+
+// ─── MATH HELPERS ────────────────────────────────────────────────────────────
+const NOISE = 0.08;
+
+// Bias INCREASES with lambda (over-regularization shrinks model too much)
+function getBias(c, lam) {
+  lam = lam === undefined ? 0 : lam;
+  const base = Math.max(0.02, 1.5 * Math.exp(-0.35 * c));
+  const regBias = 0.04 * lam; // regularization adds bias
+  return base + regBias;
+}
+
+// Variance DECREASES with lambda (regularization reduces sensitivity to noise)
+function getVariance(c, lam) {
+  const rawVar = 0.04 * Math.pow(c, 1.6);
+  return rawVar / (1 + lam * 0.6);
+}
+
+function getTotalError(c, lam) {
+  return getBias(c, lam) ** 2 + getVariance(c, lam) + NOISE;
+}
+
+// ─── SHARED STATE ────────────────────────────────────────────────────────────
+let currentScene = 0;
+let complexity = 3;
+let lambda = 0;
+let time = 0;
+let currentDataset = 'sine';
+const sceneObjects = [];
+
+// Compute global optimal ONCE at startup (correct c* and λ*)
+const GLOBAL_OPT = (() => {
+  let minErr = Infinity, optC = 1, optL = 0;
+  for (let c = 1; c <= 10; c += 0.05) {
+    for (let l = 0; l <= 5; l += 0.05) {
+      const e = getTotalError(c, l);
+      if (e < minErr) { minErr = e; optC = c; optL = l; }
+    }
+  }
+  return { minErr, optC, optL };
+})();
+
+function clearScene() {
+  sceneObjects.forEach(o => scene.remove(o));
+  sceneObjects.length = 0;
+}
+
+function addToScene(obj) { scene.add(obj); sceneObjects.push(obj); }
+
+// ─── SCENE 0: ERROR SURFACE ──────────────────────────────────────────────────
+// The bias-variance surface has ONE smooth valley — no local minima.
+// Local/global minimum traps are a gradient descent concept, not this topic.
+function buildErrorSurface() {
+  clearScene();
+  addToScene(makeGrid());
+
+  const res = 60;
+  const xMin = 1, xMax = 10, zMin = 0, zMax = 5;
+
+  // ── Pre-compute error grid for colour normalisation ────────────────────────
+  const errorGrid = [];
+  let eMin = Infinity, eMax = -Infinity;
+  for (let i = 0; i <= res; i++) {
+    for (let j = 0; j <= res; j++) {
+      const cx  = xMin + (xMax - xMin) * (i / res);
+      const lam = zMin + (zMax - zMin) * (j / res);
+      const err = getTotalError(cx, lam);
+      errorGrid.push(err);
+      if (err < eMin) eMin = err;
+      if (err > eMax) eMax = err;
+    }
+  }
+
+  // ── Build mesh ─────────────────────────────────────────────────────────────
+  const positions = [], colors = [], indices = [];
+  const col = new THREE.Color();
+  const yScale = 7.0; // full height range
+
+  for (let i = 0; i <= res; i++) {
+    for (let j = 0; j <= res; j++) {
+      const err = errorGrid[i * (res + 1) + j];
+      const x = (i / res) * 14 - 7;
+      const z = (j / res) * 14 - 7;
+      const y = (err - eMin) / (eMax - eMin) * yScale + 0.3;
+      positions.push(x, y, z);
+
+      // Smooth thermal colormap: deep blue (min) → cyan → green → yellow → red (max)
+      const t = (err - eMin) / (eMax - eMin);
+      let h;
+      if      (t < 0.25) h = 0.667 - t * 0.4;        // blue → cyan
+      else if (t < 0.5)  h = 0.567 - (t-0.25)*0.9;   // cyan → green
+      else if (t < 0.75) h = 0.342 - (t-0.5)*1.1;    // green → yellow
+      else               h = 0.067 - (t-0.75)*0.27;  // yellow → red
+      col.setHSL(Math.max(0, h), 1.0, 0.52);
+      colors.push(col.r, col.g, col.b);
+    }
+  }
+
+  for (let i = 0; i < res; i++) {
+    for (let j = 0; j < res; j++) {
+      const a = i*(res+1)+j, b = a+1, c2 = a+(res+1), d = c2+1;
+      indices.push(a,b,c2, b,d,c2);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  addToScene(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+    vertexColors: true, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.88, shininess: 55
+  })));
+
+  // Fine wireframe to show curvature
+  addToScene(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color: 0x000033, wireframe: true, transparent: true, opacity: 0.07
+  })));
+
+  // ── Iso-error contour lines on the surface (topographic lines) ────────────
+  // These show the shape of the valley clearly — correct pedagogy
+  const nContours = 10;
+  for (let lvl = 1; lvl < nContours; lvl++) {
+    const errTarget = eMin + (eMax - eMin) * (lvl / nContours);
+    const cPts = [];
+    for (let i = 0; i <= res; i++) {
+      for (let j = 0; j < res; j++) {
+        const e0 = errorGrid[i*(res+1)+j];
+        const e1 = errorGrid[i*(res+1)+j+1];
+        if ((e0 - errTarget) * (e1 - errTarget) < 0) {
+          const frac = (errTarget - e0) / (e1 - e0);
+          const x = (i / res) * 14 - 7;
+          const z = ((j + frac) / res) * 14 - 7;
+          const y = (errTarget - eMin) / (eMax - eMin) * yScale + 0.32;
+          cPts.push(new THREE.Vector3(x, y, z));
+        }
+      }
+    }
+    if (cPts.length > 1) {
+      const t = lvl / nContours;
+      const cCol = new THREE.Color().setHSL(Math.max(0, 0.667 - t*0.667), 1, 0.65);
+      addToScene(new THREE.Points(
+        new THREE.BufferGeometry().setFromPoints(cPts),
+        new THREE.PointsMaterial({ color: cCol, size: 0.055, transparent: true, opacity: 0.55 })
+      ));
+    }
+  }
+
+  // ── Sweet-spot marker: the single minimum of the bias-variance tradeoff ────
+  // This is the point ALL bias-variance explanations point to: the optimal balance.
+  const { optC: minC, optL: minL } = GLOBAL_OPT;
+  const minErr = getTotalError(minC, minL);
+  const mx = ((minC - xMin) / (xMax - xMin)) * 14 - 7;
+  const mz = ((minL - zMin) / (zMax - zMin)) * 14 - 7;
+  const my = (minErr - eMin) / (eMax - eMin) * yScale + 0.3;
+
+  // Outer halo ring
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.65, 0.82, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffb347, side: THREE.DoubleSide, transparent: true, opacity: 0.3 })
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.set(mx, my + 0.02, mz);
+  addToScene(halo);
+
+  // Inner ring
+  const innerRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.35, 0.52, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffb347, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  innerRing.rotation.x = -Math.PI / 2;
+  innerRing.position.set(mx, my + 0.03, mz);
+  addToScene(innerRing);
+
+  // Gold sphere sitting in the valley
+  const sweetSphereMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 1.1 })
+  );
+  sweetSphereMesh.position.set(mx, my + 0.2, mz);
+  addToScene(sweetSphereMesh);
+
+  // Drop line to floor
+  addToScene(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(mx,0,mz), new THREE.Vector3(mx,my,mz)]),
+    new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.5 })
+  ));
+
+  // ── Your position marker (white) ──────────────────────────────────────────
+  const px  = ((complexity - xMin) / (xMax - xMin)) * 14 - 7;
+  const pz  = ((lambda    - zMin)  / (zMax - zMin)) * 14 - 7;
+  const py  = (getTotalError(complexity, lambda) - eMin) / (eMax - eMin) * yScale + 0.3;
+
+  const yourSphereMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.7 })
+  );
+  yourSphereMesh.position.set(px, py + 0.2, pz);
+  addToScene(yourSphereMesh);
+
+  addToScene(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(px,0,pz), new THREE.Vector3(px,py,pz)]),
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })
+  ));
+
+  // ── Axis arrows ────────────────────────────────────────────────────────────
+  function makeAxis(from, to, aCol) {
+    const dir = new THREE.Vector3().subVectors(to, from).normalize();
+    addToScene(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]),
+      new THREE.LineBasicMaterial({ color: aCol, transparent: true, opacity: 0.55 })
+    ));
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.18, 0.5, 8),
+      new THREE.MeshBasicMaterial({ color: aCol, transparent: true, opacity: 0.8 })
+    );
+    cone.position.copy(to);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+    addToScene(cone);
+  }
+  makeAxis(new THREE.Vector3(-7,0.02,-7), new THREE.Vector3(8.5,0.02,-7), 0x00e5ff); // X=complexity
+  makeAxis(new THREE.Vector3(-7,0.02,-7), new THREE.Vector3(-7,0.02,8.5), 0x69ff9c); // Z=lambda
+  makeAxis(new THREE.Vector3(-7,0.02,-7), new THREE.Vector3(-7,9.5,-7),   0xff4d6d); // Y=error
+}
+
+// ─── SCENE 1: BIAS vs VARIANCE CURVES ────────────────────────────────────────
+function buildBiasVarianceCurves() {
+  clearScene();
+  addToScene(makeGrid());
+
+  const N = 200;
+  const xMin = 1, xMax = 10;
+  const yScale = 3;
+
+  function makeTube(fn, color) {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const cx = xMin + (xMax - xMin) * (i / (N - 1));
+      const x = (i / (N - 1)) * 14 - 7;
+      const y = Math.max(0.05, fn(cx) * yScale);
+      pts.push(new THREE.Vector3(x, y, 0));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const tGeo = new THREE.TubeGeometry(curve, N, 0.07, 8, false);
+    const tMat = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.35 });
+    return new THREE.Mesh(tGeo, tMat);
+  }
+
+  const biasFn  = c => getBias(c, lambda) ** 2;
+  const varFn   = c => getVariance(c, lambda);
+  const totalFn = c => getTotalError(c, lambda);
+
+  addToScene(makeTube(biasFn,  0xff4d6d));
+  addToScene(makeTube(varFn,   0x00e5ff));
+  addToScene(makeTube(totalFn, 0x69ff9c));
+
+  // Find optimal complexity (min total error)
+  let minErr = Infinity, optC = 1;
+  for (let c = 1; c <= 10; c += 0.01) {
+    const e = getTotalError(c, lambda);
+    if (e < minErr) { minErr = e; optC = c; }
+  }
+
+  // Optimal marker (gold sphere)
+  const optX = ((optC - 1) / 9) * 14 - 7;
+  const optY = minErr * yScale;
+  const optSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 0.9 })
+  );
+  optSphere.position.set(optX, optY, 0);
+  addToScene(optSphere);
+
+  // Vertical line at optimal (plain LineBasicMaterial — no computeLineDistances needed)
+  const vGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(optX, 0.01, 0), new THREE.Vector3(optX, optY, 0)
+  ]);
+  addToScene(new THREE.Line(vGeo, new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.55 })));
+
+  // Current complexity marker (white sphere on total error curve)
+  const curX = ((complexity - 1) / 9) * 14 - 7;
+  const curY = Math.max(0.18, getTotalError(complexity, lambda) * yScale);
+  const curSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6 })
+  );
+  curSphere.position.set(curX, curY, 0);
+  addToScene(curSphere);
+
+  // Drop line from current position to floor
+  const curDropGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(curX, 0.01, 0), new THREE.Vector3(curX, curY, 0)
+  ]);
+  addToScene(new THREE.Line(curDropGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 })));
+
+  // Coloured dots on bias and variance curves at current complexity
+  [{ fn: biasFn, col: 0xff4d6d }, { fn: varFn, col: 0x00e5ff }].forEach(({ fn, col }) => {
+    const dy = Math.max(0.12, fn(complexity) * yScale);
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 12, 12),
+      new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.8 })
+    );
+    dot.position.set(curX, dy, 0);
+    addToScene(dot);
+  });
+
+  // Background glow plane
+  const glowGeo = new THREE.PlaneGeometry(18, 12);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x0a0a1f, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  const glowPlane = new THREE.Mesh(glowGeo, glowMat);
+  glowPlane.position.set(0, 3, -0.5);
+  addToScene(glowPlane);
+}
+
+// ─── SCENE 2: REGULARIZATION ─────────────────────────────────────────────────
+function buildRegularizationScene() {
+  clearScene();
+  addToScene(makeGrid());
+
+  // X axis = model complexity (1–10), Z axis = lambda (0–5), Y = total error
+  // Draw a full grid of curves: one per lambda value, spanning complexity range
+  // PLUS a column of curves: one per complexity value, spanning lambda range
+  // This makes BOTH sliders visually meaningful.
+
+  const N = 80;
+  const xMin = 1, xMax = 10;
+  const lamMin = 0, lamMax = 5;
+
+  // ── 1. Curves along complexity axis (fixed lambda slices) ──────────────────
+  const fixedLambdas = [0, 1, 2, 3, 4, 5];
+  const closestLam = fixedLambdas.reduce((a, b) => Math.abs(a - lambda) < Math.abs(b - lambda) ? a : b);
+  fixedLambdas.forEach(lam => {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const cx = xMin + (xMax - xMin) * (i / (N - 1));
+      const x  = (i / (N - 1)) * 14 - 7;
+      const y  = getTotalError(cx, lam) * 3;
+      const z  = (lam / lamMax) * 12 - 6;
+      pts.push(new THREE.Vector3(x, y, z));
+    }
+    const curve3 = new THREE.CatmullRomCurve3(pts);
+    const tGeo   = new THREE.TubeGeometry(curve3, N, 0.04, 6, false);
+    const isActive = lam === closestLam;
+    const t = lam / lamMax;
+    const col = new THREE.Color().setHSL(0.67 * t, 1.0, 0.55);
+    const tMat = new THREE.MeshPhongMaterial({
+      color: col, emissive: col, emissiveIntensity: isActive ? 0.6 : 0.15,
+      transparent: true, opacity: isActive ? 1.0 : 0.25
+    });
+    addToScene(new THREE.Mesh(tGeo, tMat));
+  });
+
+  // ── 2. Curves along lambda axis (fixed complexity slices) ──────────────────
+  const fixedComplexities = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const closestC = fixedComplexities.reduce((a, b) => Math.abs(a - complexity) < Math.abs(b - complexity) ? a : b);
+  fixedComplexities.forEach(cx => {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const lam = lamMin + (lamMax - lamMin) * (i / (N - 1));
+      const x   = ((cx - xMin) / (xMax - xMin)) * 14 - 7;
+      const y   = getTotalError(cx, lam) * 3;
+      const z   = (i / (N - 1)) * 12 - 6;
+      pts.push(new THREE.Vector3(x, y, z));
+    }
+    const curve3 = new THREE.CatmullRomCurve3(pts);
+    const tGeo   = new THREE.TubeGeometry(curve3, N, 0.03, 6, false);
+    const isActive = cx === closestC;
+    const t = (cx - xMin) / (xMax - xMin);
+    const col = new THREE.Color().setHSL(0.1 - t * 0.1, 1.0, 0.55); // orange-ish
+    const tMat = new THREE.MeshPhongMaterial({
+      color: col, emissive: col, emissiveIntensity: isActive ? 0.6 : 0.1,
+      transparent: true, opacity: isActive ? 0.9 : 0.15
+    });
+    addToScene(new THREE.Mesh(tGeo, tMat));
+  });
+
+  // ── 3. Moving marker at (complexity, lambda) position ─────────────────────
+  const markerX = ((complexity - xMin) / (xMax - xMin)) * 14 - 7;
+  const markerZ = (lambda / lamMax) * 12 - 6;
+  const markerY = getTotalError(complexity, lambda) * 3;
+
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 1.0 })
+  );
+  marker.position.set(markerX, markerY, markerZ);
+  addToScene(marker);
+
+  // Vertical drop line from marker to floor
+  const dropGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(markerX, 0, markerZ),
+    new THREE.Vector3(markerX, markerY, markerZ)
+  ]);
+  addToScene(new THREE.Line(dropGeo, new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.5 })));
+
+  // Shadow dot on floor
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.25, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.25, side: THREE.DoubleSide })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.set(markerX, 0.01, markerZ);
+  addToScene(shadow);
+
+  // Thin crosshair lines on the floor to show X/Z position
+  const lx1 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-7, 0.02, markerZ), new THREE.Vector3(7, 0.02, markerZ)]);
+  const lz1 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(markerX, 0.02, -6), new THREE.Vector3(markerX, 0.02, 6)]);
+  const hairMat = new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.2 });
+  addToScene(new THREE.Line(lx1, hairMat));
+  addToScene(new THREE.Line(lz1, hairMat));
+}
+
+// ─── SCENE 3: FIT LANDSCAPE ───────────────────────────────────────────────────
+// Dataset definitions
+const DATASETS = {
+  sine: {
+    label: 'Sine Wave',
+    trueFn: x => Math.sin(x * 0.9) * 2.2,
+    noiseFn: (i, x) => Math.sin(i * 17.3) * 0.55 + Math.cos(i * 8.7) * 0.35,
+    n: 28,
+  },
+  linear: {
+    label: 'Linear Trend',
+    trueFn: x => 0.35 * x + 0.3,
+    noiseFn: (i, x) => Math.sin(i * 11.1) * 0.6 + Math.cos(i * 5.3) * 0.3,
+    n: 28,
+  },
+  quad: {
+    label: 'Quadratic',
+    trueFn: x => 0.09 * x * x - 1.2,
+    noiseFn: (i, x) => Math.cos(i * 9.7) * 0.5 + Math.sin(i * 14.3) * 0.4,
+    n: 28,
+  },
+  cluster: {
+    label: 'Noisy Clusters',
+    trueFn: x => Math.sin(x * 1.5) * 1.5,
+    noiseFn: (i, x) => Math.sin(i * 23.1) * 0.9 + Math.cos(i * 6.1) * 0.5 + Math.sin(i * 41.7) * 0.3,
+    n: 32,
+  },
+};
+
+function buildFitLandscape() {
+  clearScene();
+  addToScene(makeGrid());
+
+  const ds = DATASETS[currentDataset];
+  const dataPoints = [];
+  for (let i = 0; i < ds.n; i++) {
+    const t  = i / (ds.n - 1);
+    const xv = t * 12 - 6;
+    const yTrue = ds.trueFn(xv);
+    const noise = ds.noiseFn(i, xv);
+    dataPoints.push({ x: xv, y: yTrue + noise });
+  }
+
+  // Data point spheres
+  dataPoints.forEach(p => {
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 10, 10),
+      new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xaaaaaa, emissiveIntensity: 0.4 })
+    );
+    s.position.set(p.x, p.y, 0);
+    addToScene(s);
+  });
+
+  // True underlying function
+  const N = 200;
+  const truePts = [];
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * 14 - 7;
+    truePts.push(new THREE.Vector3(x, ds.trueFn(x), 0));
+  }
+  const trueGeo = new THREE.BufferGeometry().setFromPoints(truePts);
+  addToScene(new THREE.Line(trueGeo, new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.7 })));
+
+  // Fitted model curve — behaviour depends on complexity + lambda
+  const c   = complexity;
+  const lam = lambda;
+  const reg = 1 / (1 + lam * 0.8);
+  const mean = dataPoints.reduce((s, p) => s + p.y, 0) / dataPoints.length;
+
+  const fitPts = [];
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * 14 - 7;
+    let y;
+    if (c <= 2) {
+      const slope = 0.08 * (c - 1);
+      y = mean + slope * x;
+    } else if (c <= 4) {
+      y = ds.trueFn(x) * reg + 0.18 * (c - 2) * Math.sin(x * 1.8) * reg;
+    } else {
+      y = ds.trueFn(x);
+      for (let d = 2; d <= Math.min(Math.round(c), 9); d++) {
+        const amp = 0.22 * Math.pow(1.35, d - 2) * reg;
+        y += amp * Math.sin(x * d * 0.55 + d * 1.1) * Math.exp(-x * x * 0.008);
+      }
+    }
+    fitPts.push(new THREE.Vector3(x, y, 0));
+  }
+
+  const fitCurve = new THREE.CatmullRomCurve3(fitPts);
+  const fitGeo   = new THREE.TubeGeometry(fitCurve, N, 0.08, 8, false);
+  const fitColor = c <= 2.5 ? 0xff4d6d : c >= 7 ? 0x00e5ff : 0x69ff9c;
+  addToScene(new THREE.Mesh(fitGeo, new THREE.MeshPhongMaterial({ color: fitColor, emissive: fitColor, emissiveIntensity: 0.45 })));
+
+  // Floor ring hint
+  const ringGeo = new THREE.RingGeometry(7.2, 7.5, 64);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: fitColor, side: THREE.DoubleSide, transparent: true, opacity: 0.12 }));
+  ring.rotation.x = -Math.PI / 2;
+  addToScene(ring);
+}
+
+// ─── SCORE METER + BEST POINT DETECTION ─────────────────────────────────────
+let bannerTimeout = null;
+let wasOptimal = false;
+
+function updateScoreMeter() {
+  const { optC: globalOptC, optL: globalOptL } = GLOBAL_OPT;
+
+  // Score = distance from true optimal (c*, λ*) in normalised 2D space
+  const distC  = Math.abs(complexity - globalOptC) / 9;
+  const distL  = Math.abs(lambda - globalOptL) / 5;
+  const dist   = Math.sqrt(distC * distC + distL * distL);
+  const score  = Math.max(0, 1 - dist * 1.8);
+  const scorePct = Math.round(score * 100);
+
+  const bar    = document.getElementById('score-bar');
+  const pctEl  = document.getElementById('score-pct');
+  const status = document.getElementById('score-status');
+  const meter  = document.getElementById('score-meter');
+
+  bar.style.width = scorePct + '%';
+  pctEl.textContent = scorePct + '%';
+  bar.style.background = `hsl(${Math.round(score * 120)},100%,55%)`;
+
+  const isOptimal  = score >= 0.88;
+  meter.classList.toggle('optimal', isOptimal);
+
+  const tooSimple  = complexity < globalOptC - 1.5;
+  const tooComplex = complexity > globalOptC + 1.5;
+  const lamTooHigh = lambda > globalOptL + 1.0;
+  const lamTooLow  = lambda < globalOptL - 1.0;
+
+  if (isOptimal) {
+    status.innerHTML = '<span style="color:#ffb347">★ Optimal zone — sweet spot found!</span>';
+    if (!wasOptimal) triggerBestBanner(scorePct);
+  } else if (score > 0.65) {
+    status.innerHTML = '<span style="color:#69ff9c">↑ Very close — fine-tune both sliders</span>';
+    hideBestBanner();
+  } else if (tooSimple && lamTooHigh) {
+    status.innerHTML = '<span style="color:#ff4d6d">⚠ Too simple & over-regularized</span>';
+    hideBestBanner();
+  } else if (tooSimple) {
+    status.innerHTML = '<span style="color:#ff4d6d">⚠ Too simple — raise complexity</span>';
+    hideBestBanner();
+  } else if (tooComplex && lamTooLow) {
+    status.innerHTML = '<span style="color:#00e5ff">⚠ Overfitting — reduce complexity or raise λ</span>';
+    hideBestBanner();
+  } else if (tooComplex) {
+    status.innerHTML = '<span style="color:#00e5ff">⚠ Too complex — lower complexity</span>';
+    hideBestBanner();
+  } else if (lamTooHigh) {
+    status.innerHTML = '<span style="color:#69ff9c">⚠ λ too high — reduce regularization</span>';
+    hideBestBanner();
+  } else if (lamTooLow) {
+    status.innerHTML = '<span style="color:#ffb347">⚠ Try increasing λ slightly</span>';
+    hideBestBanner();
+  } else {
+    status.innerHTML = '<span style="color:#ffb347">↑ Getting closer — keep tuning</span>';
+    hideBestBanner();
+  }
+  wasOptimal = isOptimal;
+}
+
+function triggerBestBanner(pct) {
+  const banner = document.getElementById('best-banner');
+  const sub    = document.getElementById('banner-sub-text');
+  const pulse  = document.getElementById('pulse-overlay');
+  sub.textContent = `Score: ${pct}% — Bias² + Variance minimised!`;
+  banner.classList.add('show');
+  pulse.classList.add('active');
+  clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => {
+    banner.classList.remove('show');
+    pulse.classList.remove('active');
+  }, 3500);
+}
+
+function hideBestBanner() {
+  const banner = document.getElementById('best-banner');
+  const pulse  = document.getElementById('pulse-overlay');
+  banner.classList.remove('show');
+  pulse.classList.remove('active');
+}
+
+// ─── DATASET SWITCHER WIRING ─────────────────────────────────────────────────
+document.querySelectorAll('.ds-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ds-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDataset = btn.dataset.ds;
+    if (currentScene === 3) rebuildCurrentScene();
+  });
+});
+
+function updateDatasetSwitcherVisibility() {
+  const ds = document.getElementById('dataset-switcher');
+  ds.classList.toggle('visible', currentScene === 3);
+  // Move controls up when on scene 3 to make room for dataset switcher
+  const controls = document.getElementById('controls');
+  controls.style.bottom = currentScene === 3 ? '230px' : '80px';
+}
+
+const sceneBuilders = [buildErrorSurface, buildBiasVarianceCurves, buildRegularizationScene, buildFitLandscape];
+let rebuildTimer = null;
+
+function rebuildCurrentScene() {
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(() => { sceneBuilders[currentScene](); }, 30);
+}
+
+sceneBuilders[0]();
+
+// ─── UI BINDINGS ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.scene-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scene-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentScene = parseInt(btn.dataset.scene);
+    // Rotate camera nicely
+    if (currentScene === 0) { targetTheta = 0.5; targetPhi = 0.9; }
+    if (currentScene === 1) { targetTheta = 0;   targetPhi = 0.5; }
+    if (currentScene === 2) { targetTheta = 0.8; targetPhi = 0.7; }
+    if (currentScene === 3) { targetTheta = 0;   targetPhi = 0.5; }
+    updateLegend();
+    updateDatasetSwitcherVisibility();
+    rebuildCurrentScene();
+  });
+});
+
+const legends = [
+  [ // Scene 0
+    { color: '#0055ff', label: 'Low Error  ←  find this valley' },
+    { color: '#ff2200', label: 'High Error' },
+    { color: '#ffb347', label: '★ Sweet Spot (bias-variance balance)' },
+    { color: '#ffffff', label: '○ Your Position' },
+  ],
+  [ // Scene 1
+    { color: '#ff4d6d', label: 'Bias²' },
+    { color: '#00e5ff', label: 'Variance' },
+    { color: '#69ff9c', label: 'Total Error' },
+    { color: '#ffb347', label: 'Optimal Point' },
+  ],
+  [ // Scene 2
+    { color: '#0000ff', label: 'High λ (low variance)' },
+    { color: '#ff4d6d', label: 'Low λ (high variance)' },
+    { color: '#ffb347', label: 'Your Position' },
+  ],
+  [ // Scene 3
+    { color: '#ffffff', label: 'Data Points' },
+    { color: '#ffb347', label: 'True Function' },
+    { color: '#ff4d6d', label: 'Underfit Model' },
+    { color: '#69ff9c', label: 'Good Fit' },
+    { color: '#00e5ff', label: 'Overfit Model' },
+  ],
+];
+
+function updateLegend() {
+  const legendEl = document.getElementById('legend');
+  legendEl.innerHTML = legends[currentScene].map(l =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div>${l.label}</div>`
+  ).join('');
+}
+updateLegend();
+updateDatasetSwitcherVisibility();
+
+const complexitySlider = document.getElementById('complexity-slider');
+const lambdaSlider = document.getElementById('lambda-slider');
+const complexityDisplay = document.getElementById('complexity-display');
+const lambdaDisplay = document.getElementById('lambda-display');
+const valBias = document.getElementById('val-bias');
+const valVar = document.getElementById('val-var');
+const valTotal = document.getElementById('val-total');
+
+function updateUI() {
+  complexity = parseFloat(complexitySlider.value);
+  lambda = parseFloat(lambdaSlider.value);
+  complexityDisplay.textContent = complexity.toFixed(1);
+  lambdaDisplay.textContent = lambda.toFixed(2);
+
+  const b2  = getBias(complexity, lambda) ** 2;
+  const vr  = getVariance(complexity, lambda);
+  const tot = getTotalError(complexity, lambda);
+  valBias.textContent  = b2.toFixed(3);
+  valVar.textContent   = vr.toFixed(3);
+  valTotal.textContent = tot.toFixed(3);
+
+  // Dynamic status hint based on real optimal
+  const formulaEl = document.getElementById('formula');
+  const { optC: gOptC, optL: gOptL } = GLOBAL_OPT;
+  let hint = '';
+  if (complexity < gOptC - 2)       hint = ' &nbsp;|&nbsp; <span style="color:#ff4d6d">⚠ Underfitting</span>';
+  else if (complexity > gOptC + 2)  hint = ' &nbsp;|&nbsp; <span style="color:#00e5ff">⚠ Overfitting</span>';
+  else                               hint = ' &nbsp;|&nbsp; <span style="color:#69ff9c">✓ Good Zone</span>';
+  if (lambda > gOptL + 1.5)         hint += ' &nbsp;|&nbsp; <span style="color:#ff4d6d">⚠ Over-regularized</span>';
+  else if (lambda < gOptL - 1.0 && complexity > gOptC + 1)
+                                     hint += ' &nbsp;|&nbsp; <span style="color:#ffb347">↑ Try raising λ</span>';
+  formulaEl.innerHTML = `<span class="f-muted">E[L] =</span><span class="f-red"> Bias²</span><span class="f-muted"> + </span><span class="f-blue">Variance</span><span class="f-muted"> + </span><span class="f-green">σ²</span>${hint}`;
+
+  updateScoreMeter();
+  rebuildCurrentScene();
+}
+
+complexitySlider.addEventListener('input', updateUI);
+lambdaSlider.addEventListener('input', updateUI);
+updateUI();
+
+// ─── PARTICLES ────────────────────────────────────────────────────────────────
+const particleCount = 300;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount * 3; i++) pPos[i] = (Math.random() - 0.5) * 60;
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const pMat = new THREE.PointsMaterial({ color: 0x1e1e3a, size: 0.15, transparent: true, opacity: 0.6 });
+const particles = new THREE.Points(pGeo, pMat);
+scene.add(particles);
+
+// ─── ANIMATE ─────────────────────────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  time += 0.005;
+
+  // Smooth camera orbit
+  theta += (targetTheta - theta) * 0.05;
+  phi   += (targetPhi   - phi)   * 0.05;
+  camera.position.set(
+    radius * Math.sin(phi) * Math.sin(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 2, 0);
+
+  // Animate lights
+  pt1.position.x = Math.sin(time * 0.7) * 10;
+  pt1.position.z = Math.cos(time * 0.5) * 10;
+  pt2.position.x = Math.cos(time * 0.4) * 8;
+  pt2.position.z = Math.sin(time * 0.6) * 8;
+
+  // Rotate particles slowly
+  particles.rotation.y = time * 0.02;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ─── RESIZE ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Hide loading
+setTimeout(() => {
+  const l = document.getElementById('loading');
+  l.style.opacity = '0';
+  setTimeout(() => l.remove(), 600);
+}, 800);
+</script>
+</body>
+</html>
