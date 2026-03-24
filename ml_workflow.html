@@ -1,0 +1,330 @@
+
+<style>
+  * { box-sizing: border-box; }
+  .wrap { width: 100%; }
+  svg { display: block; width: 100%; }
+  .panel { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999; align-items:center; justify-content:center; background:rgba(0,0,0,0.45); }
+  .panel.open { display:flex; }
+  .card { background:#fff; border:1px solid #ddd; border-radius:16px; padding:24px 28px; max-width:440px; width:90%; max-height:82vh; overflow-y:auto; position:relative; color:#222; }
+  .card h2 { font-size:17px; font-weight:600; margin:0 0 4px; color:#111; }
+  .card .sub { font-size:12px; color:#888; margin:0 0 14px; }
+  .card p { font-size:13px; color:#444; line-height:1.65; margin:0 0 10px; }
+  .card ul { margin:0 0 10px; padding-left:18px; }
+  .card ul li { font-size:13px; color:#444; line-height:1.65; margin-bottom:3px; }
+  .card code { font-family:monospace; font-size:12px; background:#f4f4f4; padding:8px 10px; border-radius:8px; display:block; line-height:1.8; white-space:pre; overflow-x:auto; margin:8px 0; }
+  .tag { display:inline-block; font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; margin:2px 3px 2px 0; }
+  .t-blue { background:#dbeafe; color:#1d4ed8; }
+  .t-green { background:#dcfce7; color:#166534; }
+  .t-amber { background:#fef9c3; color:#854d0e; }
+  .t-red { background:#fee2e2; color:#991b1b; }
+  .close-btn { position:absolute; top:12px; right:14px; font-size:18px; cursor:pointer; color:#888; background:none; border:none; }
+  .divider { height:1px; background:#eee; margin:10px 0; }
+  .node-g { cursor:pointer; }
+  .node-g:hover rect, .node-g:hover polygon { opacity:0.82; }
+</style>
+
+<div class="wrap">
+<svg viewBox="0 0 680 1120" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Step 1 -->
+<g class="node-g" onclick="show('goal')">
+  <rect x="225" y="28" width="230" height="52" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="0.8"/>
+  <text x="340" y="49" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Define business goal</text>
+  <text x="340" y="67" text-anchor="middle" font-size="11" fill="#6d28d9">What problem are we solving?</text>
+</g>
+<line x1="340" y1="80" x2="340" y2="108" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Step 2 -->
+<g class="node-g" onclick="show('data')">
+  <rect x="225" y="108" width="230" height="52" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="0.8"/>
+  <text x="340" y="129" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Collect data</text>
+  <text x="340" y="147" text-anchor="middle" font-size="11" fill="#6d28d9">CSV, APIs, databases, scraping</text>
+</g>
+<line x1="340" y1="160" x2="340" y2="188" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Step 3: Three-way split -->
+<g class="node-g" onclick="show('split')">
+  <rect x="190" y="188" width="300" height="52" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="0.8"/>
+  <text x="340" y="209" text-anchor="middle" font-size="14" font-weight="600" fill="#134e4a">Train / val / test split</text>
+  <text x="340" y="227" text-anchor="middle" font-size="11" fill="#0f766e">e.g. 70% train · 15% val · 15% test</text>
+</g>
+
+<!-- Three branch lines -->
+<line x1="260" y1="240" x2="140" y2="280" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+<line x1="340" y1="240" x2="340" y2="280" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+<line x1="420" y1="240" x2="530" y2="280" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+<text x="170" y="270" text-anchor="middle" font-size="11" fill="#64748b">Train</text>
+<text x="340" y="270" text-anchor="middle" font-size="11" fill="#64748b">Val</text>
+<text x="510" y="270" text-anchor="middle" font-size="11" fill="#64748b">Test</text>
+
+<!-- Val held aside -->
+<g class="node-g" onclick="show('valset')">
+  <rect x="285" y="280" width="115" height="44" rx="8" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.8"/>
+  <text x="342" y="296" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Val set</text>
+  <text x="342" y="312" text-anchor="middle" font-size="10" fill="#92400e">For tuning decisions</text>
+</g>
+
+<!-- Test held out -->
+<g class="node-g" onclick="show('testset')">
+  <rect x="430" y="280" width="170" height="44" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.8"/>
+  <text x="515" y="296" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">Test set held out</text>
+  <text x="515" y="312" text-anchor="middle" font-size="10" fill="#64748b">Touch once at the end</text>
+</g>
+
+<!-- Step 4: EDA -->
+<g class="node-g" onclick="show('eda')">
+  <rect x="28" y="280" width="208" height="44" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="0.8"/>
+  <text x="132" y="296" text-anchor="middle" font-size="13" font-weight="600" fill="#134e4a">EDA &amp; data cleaning</text>
+  <text x="132" y="312" text-anchor="middle" font-size="11" fill="#0f766e">Explore, clean, understand</text>
+</g>
+<line x1="132" y1="324" x2="132" y2="352" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Imputation pill -->
+<line x1="236" y1="302" x2="283" y2="302" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('impute')">
+  <rect x="281" y="292" width="0" height="0" rx="0" fill="none"/>
+</g>
+
+<!-- Step 5: Feature engineering -->
+<g class="node-g" onclick="show('features')">
+  <rect x="28" y="352" width="208" height="44" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="0.8"/>
+  <text x="132" y="368" text-anchor="middle" font-size="13" font-weight="600" fill="#134e4a">Feature engineering</text>
+  <text x="132" y="384" text-anchor="middle" font-size="11" fill="#0f766e">Transform &amp; encode variables</text>
+</g>
+<line x1="132" y1="396" x2="132" y2="424" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Pills: encoding / scaling / pipeline -->
+<line x1="236" y1="362" x2="284" y2="362" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('encoding')">
+  <rect x="282" y="352" width="70" height="20" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.7"/>
+  <text x="317" y="365" text-anchor="middle" font-size="11" fill="#92400e">Encoding</text>
+</g>
+<line x1="236" y1="378" x2="284" y2="378" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('scaling')">
+  <rect x="282" y="368" width="70" height="20" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.7"/>
+  <text x="317" y="381" text-anchor="middle" font-size="11" fill="#92400e">Scaling</text>
+</g>
+<line x1="236" y1="394" x2="284" y2="394" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('pipeline')">
+  <rect x="282" y="384" width="70" height="20" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.7"/>
+  <text x="317" y="397" text-anchor="middle" font-size="11" fill="#92400e">Pipeline</text>
+</g>
+
+<!-- Step 6: Modeling -->
+<g class="node-g" onclick="show('modeling')">
+  <rect x="28" y="424" width="208" height="44" rx="10" fill="#ffe4e6" stroke="#e11d48" stroke-width="0.8"/>
+  <text x="132" y="440" text-anchor="middle" font-size="13" font-weight="600" fill="#9f1239">Modeling</text>
+  <text x="132" y="456" text-anchor="middle" font-size="11" fill="#be123c">fit(X_train, y_train)</text>
+</g>
+<line x1="132" y1="468" x2="132" y2="496" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Model pills -->
+<line x1="236" y1="436" x2="284" y2="436" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('models')">
+  <rect x="282" y="426" width="80" height="20" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="0.7"/>
+  <text x="322" y="439" text-anchor="middle" font-size="11" fill="#991b1b">Model types</text>
+</g>
+<line x1="236" y1="456" x2="284" y2="456" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('overfitting')">
+  <rect x="282" y="446" width="80" height="20" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="0.7"/>
+  <text x="322" y="459" text-anchor="middle" font-size="11" fill="#991b1b">Overfitting</text>
+</g>
+
+<!-- Step 7: Hyperparameter tuning -->
+<g class="node-g" onclick="show('tuning')">
+  <rect x="28" y="496" width="208" height="44" rx="10" fill="#ffe4e6" stroke="#e11d48" stroke-width="0.8"/>
+  <text x="132" y="512" text-anchor="middle" font-size="13" font-weight="600" fill="#9f1239">Hyperparameter tuning</text>
+  <text x="132" y="528" text-anchor="middle" font-size="11" fill="#be123c">Cross-val &amp; grid search</text>
+</g>
+<line x1="132" y1="540" x2="132" y2="568" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Tuning pills -->
+<line x1="236" y1="508" x2="284" y2="508" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('cv')">
+  <rect x="282" y="498" width="90" height="20" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="0.7"/>
+  <text x="327" y="511" text-anchor="middle" font-size="11" fill="#1e40af">Cross-validation</text>
+</g>
+<line x1="236" y1="528" x2="284" y2="528" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('gridsearch')">
+  <rect x="282" y="518" width="90" height="20" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="0.7"/>
+  <text x="327" y="531" text-anchor="middle" font-size="11" fill="#1e40af">Grid search</text>
+</g>
+
+<!-- ── UPDATED EVAL BOX ── -->
+<g class="node-g" onclick="show('eval')">
+  <rect x="28" y="568" width="208" height="56" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.8"/>
+  <text x="132" y="586" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">Evaluate on val set</text>
+  <text x="132" y="602" text-anchor="middle" font-size="10" fill="#92400e">y_pred = model.predict(X_val)</text>
+  <text x="132" y="616" text-anchor="middle" font-size="10" fill="#92400e">y_proba = model.predict_proba(X_val)[:,1]</text>
+</g>
+<line x1="132" y1="624" x2="132" y2="660" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Note: NOT X_test yet -->
+<line x1="236" y1="590" x2="284" y2="590" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('val_vs_test')">
+  <rect x="282" y="580" width="90" height="20" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="0.7"/>
+  <text x="327" y="593" text-anchor="middle" font-size="11" fill="#991b1b">Val vs test?</text>
+</g>
+
+<!-- Metric pills -->
+<line x1="236" y1="610" x2="284" y2="610" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('clf_metrics')">
+  <rect x="282" y="600" width="90" height="20" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="0.7"/>
+  <text x="327" y="613" text-anchor="middle" font-size="11" fill="#15803d">Classification</text>
+</g>
+<line x1="236" y1="626" x2="284" y2="626" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="3 3"/>
+<g class="node-g" onclick="show('reg_metrics')">
+  <rect x="282" y="616" width="90" height="20" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="0.7"/>
+  <text x="327" y="629" text-anchor="middle" font-size="11" fill="#15803d">Regression</text>
+</g>
+
+<!-- Diamond -->
+<g class="node-g" onclick="show('decision')">
+  <polygon points="132,664 202,694 132,724 62,694" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.8"/>
+  <text x="132" y="690" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Good</text>
+  <text x="132" y="706" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">enough?</text>
+</g>
+
+<!-- Yes → Final test eval -->
+<line x1="202" y1="694" x2="278" y2="694" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+<text x="240" y="686" text-anchor="middle" font-size="11" fill="#64748b">Yes</text>
+
+<!-- ── FINAL TEST EVAL BOX ── -->
+<g class="node-g" onclick="show('finaltest')">
+  <rect x="278" y="672" width="230" height="56" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="0.8"/>
+  <text x="393" y="690" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Final test evaluation</text>
+  <text x="393" y="706" text-anchor="middle" font-size="10" fill="#166534">y_pred = model.predict(X_test)</text>
+  <text x="393" y="720" text-anchor="middle" font-size="10" fill="#166534">y_proba = model.predict_proba(X_test)[:,1]</text>
+</g>
+<line x1="393" y1="728" x2="393" y2="784" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+
+<!-- Problem solved -->
+<g class="node-g" onclick="show('solved')">
+  <rect x="278" y="784" width="230" height="52" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="0.8"/>
+  <text x="393" y="805" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Problem solved</text>
+  <text x="393" y="823" text-anchor="middle" font-size="11" fill="#16a34a">Deploy &amp; monitor the model</text>
+</g>
+
+<!-- No arrow -->
+<line x1="132" y1="724" x2="132" y2="768" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+<text x="148" y="752" font-size="11" fill="#64748b">No</text>
+
+<!-- Error analysis -->
+<g class="node-g" onclick="show('error')">
+  <rect x="28" y="768" width="208" height="52" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="0.8"/>
+  <text x="132" y="789" text-anchor="middle" font-size="13" font-weight="600" fill="#7f1d1d">Error analysis</text>
+  <text x="132" y="807" text-anchor="middle" font-size="11" fill="#b91c1c">Diagnose what went wrong</text>
+</g>
+
+<!-- Loop back -->
+<path d="M28 794 L8 794 L8 446 L26 446" fill="none" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arr2)"/>
+<text x="0" y="620" text-anchor="middle" font-size="10" fill="#94a3b8" transform="rotate(-90 0 620)">revisit features or model</text>
+
+<!-- Hint -->
+<text x="340" y="1080" text-anchor="middle" font-size="11" fill="#94a3b8">Click any box or pill for details</text>
+</svg>
+</div>
+
+<div id="overlay" class="panel" onclick="closePanel(event)">
+  <div class="card">
+    <button class="close-btn" onclick="closeAll()">&#x2715;</button>
+    <h2 id="p-title"></h2>
+    <p id="p-sub" class="sub"></p>
+    <div id="p-body"></div>
+  </div>
+</div>
+
+<script>
+const data = {
+  goal:{title:"Define business goal",sub:"Step 1 — The foundation of every ML project",body:`<p>Before writing any code, clearly define what success looks like.</p><p><b>Key questions:</b></p><ul><li>Is this classification, regression, or clustering?</li><li>What metric will stakeholders judge success by?</li><li>What is the cost of a false positive vs. false negative?</li></ul><div class="divider"></div><p><b>Examples:</b></p><ul><li>"Predict customer churn in 30 days" → classification</li><li>"Predict house sale price" → regression</li></ul><span class="tag t-blue">Classification</span><span class="tag t-green">Regression</span><span class="tag t-amber">Clustering</span>`},
+  data:{title:"Collect data",sub:"Step 2 — Garbage in, garbage out",body:`<p>Data quality and quantity is the single biggest factor in model performance.</p><p><b>Common sources:</b></p><ul><li>CSV / Excel files</li><li>SQL databases</li><li>REST APIs</li><li>Web scraping — BeautifulSoup, Scrapy</li><li>Public datasets — Kaggle, UCI ML Repository</li></ul><div class="divider"></div><p><b>Watch out for:</b></p><ul><li>Class imbalance</li><li>Data leakage — future info accidentally included</li><li>Sampling bias</li></ul><span class="tag t-blue">pandas</span><span class="tag t-blue">SQL</span><span class="tag t-green">Kaggle</span>`},
+  split:{title:"Train / val / test split",sub:"Step 3 — Three-way split for clean evaluation",body:`<p>A three-way split gives you three distinct roles for your data:</p><ul><li><b>Train set</b> — the model learns from this</li><li><b>Validation set</b> — you make all tuning decisions here (model choice, hyperparameters)</li><li><b>Test set</b> — touched exactly once at the very end for an honest performance report</li></ul><div class="divider"></div><code>from sklearn.model_selection import train_test_split
+
+# First split off the test set
+X_temp, X_test, y_temp, y_test = train_test_split(
+    X, y, test_size=0.15, random_state=42)
+
+# Then split remaining into train and val
+X_train, X_val, y_train, y_val = train_test_split(
+    X_temp, y_temp, test_size=0.176, random_state=42)
+# 0.176 of 85% ≈ 15% of total</code><p>Use <b>stratify=y</b> in both splits for classification tasks.</p><span class="tag t-blue">sklearn</span><span class="tag t-red">Split before preprocessing!</span>`},
+  valset:{title:"Validation set",sub:"Your tuning sandbox — use it freely",body:`<p>The validation set is carved from your training data and used for all iterative decisions:</p><ul><li>Comparing different models</li><li>Choosing hyperparameters</li><li>Evaluating feature engineering ideas</li><li>Deciding when to stop training</li></ul><div class="divider"></div><p>You can evaluate on the val set as many times as you want. It's the safe zone for experimentation.</p><p><b>Alternative:</b> If your dataset is small, use cross-validation instead of a fixed val split — it gives a more stable estimate by rotating which rows are used for validation.</p><span class="tag t-amber">Reuse freely</span><span class="tag t-green">For all tuning decisions</span>`},
+  testset:{title:"Test set — hold it out!",sub:"The golden rule of ML evaluation",body:`<p>The test set simulates real-world data your model has never seen. Touch it <b>exactly once</b> — after all decisions are finalized.</p><p><b>Why this matters:</b> Every time you peek at the test set and adjust based on it, you're effectively training on it. You lose an honest measure of generalization.</p><div class="divider"></div><p><b>What to use for tuning instead:</b></p><ul><li>Use <b>X_val</b> for model comparison and hyperparameter tuning</li><li>Use <b>cross-validation on X_train</b> if no separate val set</li><li>Reserve <b>X_test</b> for the final, single report</li></ul><span class="tag t-red">Never tune on test data</span><span class="tag t-green">Use exactly once</span>`},
+  eda:{title:"EDA & data cleaning",sub:"Step 4 — Understand your data before modeling",body:`<p>Exploratory Data Analysis reveals patterns, anomalies, and relationships you must understand before modeling.</p><p><b>Key tasks:</b></p><ul><li>Check shape, dtypes, memory usage</li><li>Identify missing values and their patterns</li><li>Distribution plots — histograms, boxplots</li><li>Correlation matrix — find multicollinearity</li><li>Outlier detection via IQR or z-score</li></ul><div class="divider"></div><p><b>Tools:</b> pandas describe(), info(), seaborn pairplot(), heatmap(), missingno</p><span class="tag t-blue">pandas</span><span class="tag t-blue">seaborn</span><span class="tag t-blue">matplotlib</span>`},
+  impute:{title:"Handling missing values",sub:"Imputation strategies",body:`<p><b>Drop</b> — only if missingness is random and under 5% of data.</p><p><b>Mean / Median</b> — fast and simple. Use median for skewed distributions.</p><p><b>KNN imputation</b> — finds k nearest rows and uses their values. More accurate but slower.</p><p><b>Iterative Imputer (MICE)</b> — models each missing feature as a function of others. Best for complex patterns.</p><div class="divider"></div><code>from sklearn.impute import KNNImputer
+imp = KNNImputer(n_neighbors=5)
+X_train = imp.fit_transform(X_train)
+X_val   = imp.transform(X_val)
+X_test  = imp.transform(X_test)  # no fit!</code><span class="tag t-blue">Mean/Median</span><span class="tag t-green">KNN</span><span class="tag t-amber">MICE</span>`},
+  features:{title:"Feature engineering",sub:"Step 5 — Transform raw data into model-ready inputs",body:`<p>Often where the most performance is gained. Most algorithms need numerical input and are scale-sensitive.</p><p><b>Common transformations:</b></p><ul><li>Log transform — normalize right-skewed distributions</li><li>Polynomial features — capture non-linear relationships</li><li>Binning — convert continuous to categorical (age groups)</li><li>Date decomposition — day, month, weekday, is_holiday</li><li>Interaction features — multiply two features</li></ul><div class="divider"></div><p>Always <b>fit on X_train only</b>, then transform X_train, X_val, and X_test.</p><span class="tag t-blue">sklearn</span><span class="tag t-red">Fit on train only!</span>`},
+  encoding:{title:"Categorical encoding",sub:"Converting categories to numbers",body:`<p><b>One-hot encoding</b> — binary column per category. Best for nominal features (color, city).</p><p><b>Ordinal encoding</b> — maps to integers. Use only when order is meaningful.</p><p><b>Target encoding</b> — replace category with mean of target. Powerful but risks leakage.</p><p><b>Frequency encoding</b> — replace with count/frequency. Good for high-cardinality features.</p><span class="tag t-blue">One-hot</span><span class="tag t-blue">Ordinal</span><span class="tag t-green">Target</span><span class="tag t-amber">High cardinality</span>`},
+  scaling:{title:"Feature scaling",sub:"Normalizing numerical ranges",body:`<p><b>StandardScaler</b> — zero mean, unit variance. Best for most algorithms.</p><code>z = (x - mean) / std</code><p><b>MinMaxScaler</b> — scales to [0, 1]. Good for neural networks.</p><code>x_scaled = (x - min) / (max - min)</code><p><b>RobustScaler</b> — uses median and IQR. Resistant to outliers.</p><div class="divider"></div><p><b>Tree models</b> (Random Forest, XGBoost) do NOT need scaling.</p><span class="tag t-blue">StandardScaler</span><span class="tag t-blue">MinMaxScaler</span><span class="tag t-green">RobustScaler</span>`},
+  pipeline:{title:"sklearn Pipeline",sub:"Package preprocessing + model into one object",body:`<p>A Pipeline chains preprocessing and the model together — preventing leakage and simplifying deployment.</p><code>from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+
+pipe = Pipeline([
+  ('scaler', StandardScaler()),
+  ('model', RandomForestClassifier())
+])
+
+pipe.fit(X_train, y_train)
+pipe.predict(X_val)   # scaler auto-applied
+pipe.predict(X_test)  # same pipeline, no leakage</code><span class="tag t-green">Best practice</span><span class="tag t-blue">sklearn</span>`},
+  modeling:{title:"Modeling",sub:"Step 6 — Train your algorithm",body:`<p>Feed prepared training data into an algorithm that learns a mapping from inputs to outputs.</p><code>model = RandomForestClassifier()
+model.fit(X_train, y_train)
+
+# Evaluate on val, NOT test
+y_pred = model.predict(X_val)
+y_proba = model.predict_proba(X_val)[:, 1]</code><div class="divider"></div><p><b>Start simple:</b> Always begin with a baseline (Logistic Regression). Beat that before adding complexity.</p><span class="tag t-blue">fit()</span><span class="tag t-amber">Start simple</span>`},
+  models:{title:"Model types overview",sub:"Choosing the right algorithm",body:`<p><b>Linear Regression</b> — continuous output, fast interpretable baseline.</p><p><b>Logistic Regression</b> — classification baseline despite the name.</p><p><b>Decision Tree</b> — interpretable but prone to overfitting alone.</p><p><b>Random Forest</b> — ensemble of trees, robust default for tabular data.</p><p><b>XGBoost / LightGBM</b> — state of the art for structured data.</p><p><b>KNN</b> — simple but slow on large datasets.</p><p><b>SVM</b> — works well in high dimensions.</p><p><b>Neural Networks</b> — best for images, text, audio.</p><span class="tag t-green">Random Forest — good default</span><span class="tag t-amber">XGBoost — tabular champion</span>`},
+  overfitting:{title:"Overfitting vs underfitting",sub:"The bias-variance tradeoff",body:`<p><b>Overfitting</b> — great on train, poor on val/test. Memorized noise. train=99%, val=70%.</p><p><b>Underfitting</b> — too simple. Both train and val are low.</p><div class="divider"></div><p><b>Fixes for overfitting:</b></p><ul><li>More training data</li><li>Reduce model complexity</li><li>Regularization — L1 (Lasso), L2 (Ridge)</li><li>Dropout (neural networks)</li><li>Early stopping</li></ul><span class="tag t-red">Overfit: high train, low val</span><span class="tag t-amber">Underfit: low both</span>`},
+  tuning:{title:"Hyperparameter tuning",sub:"Step 7 — Optimize model settings",body:`<p>Hyperparameters are settings chosen before training. Tuning finds the best combination.</p><p><b>Critical rule: always tune using X_val or cross-validation — never X_test.</b></p><ul><li><b>Grid Search</b> — exhaustive, slow but thorough</li><li><b>Randomized Search</b> — faster, near-optimal</li><li><b>Bayesian Optimization</b> — learns promising regions, most efficient</li><li><b>Optuna</b> — modern library for advanced tuning</li></ul><span class="tag t-blue">GridSearchCV</span><span class="tag t-blue">RandomizedSearchCV</span><span class="tag t-green">Optuna</span>`},
+  cv:{title:"Cross-validation",sub:"More reliable performance estimation",body:`<p>K-fold CV splits training data into k parts, trains on k-1 and validates on 1, cycling through all combos. Final score = average.</p><code>from sklearn.model_selection import cross_val_score
+scores = cross_val_score(
+    model, X_train, y_train,
+    cv=5, scoring='accuracy')
+print(scores.mean(), scores.std())</code><p>Use <b>StratifiedKFold</b> for classification. k=5 or k=10 are most common.</p><div class="divider"></div><p>When using CV you may not need a separate val set — CV handles the tuning estimation internally. X_test is still reserved for the final report.</p><span class="tag t-blue">5-fold</span><span class="tag t-green">StratifiedKFold</span>`},
+  gridsearch:{title:"Grid search",sub:"Systematic hyperparameter optimization",body:`<p>GridSearchCV tries every parameter combination and scores each with cross-validation.</p><code>from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+  'n_estimators': [100, 200, 500],
+  'max_depth': [3, 5, None],
+  'min_samples_split': [2, 5]
+}
+
+gs = GridSearchCV(RandomForestClassifier(),
+    param_grid, cv=5, scoring='f1')
+gs.fit(X_train, y_train)
+print(gs.best_params_)
+
+# Evaluate best model on val set
+y_pred = gs.predict(X_val)</code><span class="tag t-blue">GridSearchCV</span><span class="tag t-amber">Can be slow</span>`},
+  eval:{title:"Evaluate on validation set",sub:"Step 8 — Measure generalization during development",body:`<p>Use X_val (not X_test) for all iterative evaluation during development.</p><code>y_pred  = model.predict(X_val)
+y_proba = model.predict_proba(X_val)[:, 1]</code><div class="divider"></div><p><b>Ask yourself:</b></p><ul><li>Better than a naive baseline?</li><li>Is the train–val gap too large? (overfitting)</li><li>Are both scores low? (underfitting)</li><li>Does the metric match the business goal?</li></ul><p>Repeat this step freely — that's what the val set is for. Only switch to X_test when you're truly done.</p><span class="tag t-amber">X_val — reuse freely here</span><span class="tag t-red">Not X_test yet!</span>`},
+  val_vs_test:{title:"Val vs test — what to use when?",sub:"The most common source of confusion in ML",body:`<p><b>During development → always X_val</b></p><code>y_pred  = model.predict(X_val)
+y_proba = model.predict_proba(X_val)[:, 1]</code><p>Use this while iterating — comparing models, tuning hyperparameters, engineering features. You can look at val results as many times as you want.</p><div class="divider"></div><p><b>Final report only → X_test</b></p><code>y_pred  = model.predict(X_test)
+y_proba = model.predict_proba(X_test)[:, 1]</code><p>Use this exactly once, after all decisions are locked. This is your honest, unbiased estimate of real-world performance.</p><div class="divider"></div><p><b>Why it matters:</b> Every time you adjust your model based on test set results — even without calling fit() — you're indirectly fitting to the test distribution. Your reported score becomes optimistically biased.</p><span class="tag t-amber">Val → iterate freely</span><span class="tag t-red">Test → once, at the end</span>`},
+  clf_metrics:{title:"Classification metrics",sub:"Measuring categorical prediction quality",body:`<p><b>Accuracy</b> — % correctly classified. Misleading for imbalanced classes.</p><p><b>Precision</b> — of predicted positives, how many were actually positive? Use when false positives are costly.</p><p><b>Recall</b> — of actual positives, how many did we catch? Use when false negatives are costly.</p><p><b>F1 Score</b> — harmonic mean of precision and recall. Best for imbalanced datasets.</p><p><b>ROC-AUC</b> — 0.5 = random, 1.0 = perfect. Threshold-independent.</p><p><b>Confusion matrix</b> — full TP/TN/FP/FN breakdown. Always look at this.</p><span class="tag t-blue">Accuracy</span><span class="tag t-blue">F1</span><span class="tag t-green">ROC-AUC</span>`},
+  reg_metrics:{title:"Regression metrics",sub:"Measuring continuous prediction quality",body:`<p><b>MAE</b> — average absolute difference. Robust to outliers, easy to interpret.</p><p><b>MSE</b> — average squared error. Penalizes large errors heavily.</p><p><b>RMSE</b> — square root of MSE. Back in original units, most commonly reported.</p><p><b>MAPE</b> — error as % of actual. Intuitive but undefined when actual = 0.</p><p><b>R²</b> — proportion of variance explained. 1.0 = perfect, 0.0 = predicts the mean.</p><span class="tag t-blue">MAE</span><span class="tag t-blue">RMSE</span><span class="tag t-green">R²</span><span class="tag t-amber">MAPE</span>`},
+  decision:{title:"Is the model good enough?",sub:"Deciding whether to iterate or finalize",body:`<p>Compare val performance against the business requirements from Step 1.</p><p><b>Good enough means:</b></p><ul><li>Metric exceeds your defined threshold (e.g. F1 > 0.85)</li><li>Better than current system or naive baseline</li><li>Consistent across CV folds (low std dev)</li><li>Errors acceptable from a business perspective</li></ul><div class="divider"></div><p><b>Not good enough? Go back to:</b></p><ul><li>Feature engineering — create better features</li><li>Data collection — get more data</li><li>Model selection — try a different algorithm</li><li>Hyperparameter tuning</li></ul><span class="tag t-green">Meets threshold → proceed to test</span><span class="tag t-red">Fails → iterate on val</span>`},
+  finaltest:{title:"Final test set evaluation",sub:"The honest, once-only performance report",body:`<p>Now — and only now — evaluate on the test set locked away at the start.</p><code>y_pred  = final_model.predict(X_test)
+y_proba = final_model.predict_proba(X_test)[:, 1]
+
+from sklearn.metrics import classification_report
+print(classification_report(y_test, y_pred))</code><div class="divider"></div><p><b>If test performance is much worse than val:</b> you likely overfit to the val set during tuning, or your splits were not representative. Do not tune further based on this number.</p><p>This score is what you report to stakeholders as the model's real-world performance estimate.</p><span class="tag t-red">Use exactly once</span><span class="tag t-green">Honest estimate</span>`},
+  solved:{title:"Problem solved — deploy!",sub:"Getting the model into production",body:`<p><b>Common deployment approaches:</b></p><ul><li><b>REST API</b> — wrap in FastAPI/Flask, expose /predict endpoint</li><li><b>Batch prediction</b> — run on new data periodically</li><li><b>Embedded</b> — serialize with joblib/pickle, load in app code</li><li><b>Cloud ML platforms</b> — AWS SageMaker, GCP Vertex AI, Azure ML</li></ul><div class="divider"></div><p><b>After deployment, monitor:</b> prediction drift, data drift, model degradation. Real-world data changes — models go stale.</p><span class="tag t-blue">FastAPI</span><span class="tag t-blue">joblib</span><span class="tag t-green">MLflow</span><span class="tag t-amber">Monitor drift</span>`},
+  error:{title:"Error analysis",sub:"Understanding where and why your model fails",body:`<p><b>Techniques:</b></p><ul><li><b>Confusion matrix</b> — which classes are being confused?</li><li><b>Residual plot</b> — where are the largest regression errors?</li><li><b>Feature importance</b> — which features drive predictions?</li><li><b>SHAP values</b> — explain individual predictions</li><li><b>Learning curves</b> — does more data help?</li><li><b>Slice analysis</b> — underperformance on specific subgroups?</li></ul><div class="divider"></div><p>Error analysis almost always points clearly to the next action: more data, better features, or a different model.</p><span class="tag t-blue">SHAP</span><span class="tag t-amber">Learning curves</span><span class="tag t-red">Slice analysis</span>`}
+};
+function show(id){const d=data[id];if(!d)return;document.getElementById('p-title').textContent=d.title;document.getElementById('p-sub').textContent=d.sub;document.getElementById('p-body').innerHTML=d.body;document.getElementById('overlay').classList.add('open');}
+function closePanel(e){if(e.target===document.getElementById('overlay'))closeAll();}
+function closeAll(){document.getElementById('overlay').classList.remove('open');}
+</script>
